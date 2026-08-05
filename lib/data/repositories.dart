@@ -43,6 +43,16 @@ class Repositories {
         .get();
   }
 
+  Future<Word?> wordById(int wordId) async {
+    return (db.select(db.words)..where((w) => w.id.equals(wordId)))
+        .getSingleOrNull();
+  }
+
+  Future<void> setWordStatus(int wordId, WordStatus status) async {
+    await (db.update(db.words)..where((w) => w.id.equals(wordId)))
+        .write(WordsCompanion(status: Value(status.name)));
+  }
+
   /// 批量加词,词集去重:已存在的词跳过,返回实际新增数
   Future<int> addWords(int wordSetId, Iterable<String> headwords) async {
     final existing = await (db.select(db.words)
