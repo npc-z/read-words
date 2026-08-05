@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单词阅读页原型 — Variant A/B/C</title>
+<style>
+  :root { --ink:#1a1a1a; --sub:#6b7280; --line:#e5e7eb; --accent:#2563eb; --ok:#16a34a; --warn:#d97706; --bg:#fafafa; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
+  .phone { max-width:480px; margin:0 auto; min-height:100vh; background:#fff; box-shadow:0 0 24px rgba(0,0,0,.06); position:relative; }
+
+  /* ---- shared header bits ---- */
+  .wordhead { padding:24px 20px 16px; border-bottom:1px solid var(--line); }
+  .word { font-size:34px; font-weight:700; letter-spacing:.5px; }
+  .ipa { display:flex; gap:16px; margin-top:8px; color:var(--sub); font-size:15px; }
+  .ipa b { color:var(--ink); font-weight:600; }
+  .pronbtn { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; }
+  .pronbtn:hover { border-color:var(--accent); color:var(--accent); }
+  .pronrow { display:flex; gap:8px; margin-top:12px; }
+  .phrasebox { margin:16px 20px; }
+  .phrasebox h3 { font-size:14px; color:var(--sub); margin-bottom:10px; }
+  .phrase { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .phrase .p { font-weight:600; font-size:15px; }
+  .phrase .e { margin-top:6px; font-size:14px; }
+  .phrase .z { margin-top:4px; font-size:13px; color:var(--sub); }
+
+  .lvl { display:inline-block; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:700; color:#fff; }
+  .lvl-1 { background:#22c55e; }
+  .lvl-2 { background:#f59e0b; }
+  .lvl-3 { background:#ef4444; }
+  .tag { display:inline-block; border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:11px; color:var(--sub); background:#f9fafb; }
+
+  /* review toggle (shared) */
+  .review { display:flex; gap:10px; margin-top:14px; }
+  .review button { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px 0; font-size:14px; cursor:pointer; }
+  .review .yes.active { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .review .no.active { background:var(--warn); color:#fff; border-color:var(--warn); }
+
+  /* display config (shared demo) */
+  .dconfig { position:absolute; top:10px; right:10px; z-index:5; display:flex; gap:4px; background:#fff; border:1px solid var(--line); border-radius:999px; padding:3px; }
+  .dconfig button { border:0; background:transparent; border-radius:999px; padding:4px 10px; font-size:12px; cursor:pointer; color:var(--sub); }
+  .dconfig button.on { background:var(--accent); color:#fff; }
+
+  .ztext[data-hide="1"], .zhidden { display:none; }
+  .etext[data-hide="1"] { display:none; }
+
+  /* ---------- VARIANT A: level flow ---------- */
+  .va-levels { padding:16px 20px; }
+  .va-path { display:flex; align-items:center; gap:8px; background:#f0f6ff; border:1px solid #dbe7ff; border-radius:12px; padding:12px 14px; margin-bottom:16px; }
+  .va-path .step { font-size:12px; color:var(--sub); }
+  .va-path .step.done { color:var(--accent); font-weight:700; }
+  .va-path .arr { color:#c7d6f5; }
+  .va-path .go { margin-left:auto; font-size:13px; color:var(--accent); font-weight:600; }
+  .va-block { border:1px solid var(--line); border-radius:14px; margin-bottom:16px; overflow:hidden; }
+  .va-block header { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfc; }
+  .va-block header .lvl { font-size:12px; }
+  .va-block header h2 { font-size:15px; }
+  .va-block header .desc { margin-left:auto; font-size:12px; color:var(--sub); }
+  .va-sent { padding:12px 14px; border-bottom:1px solid var(--line); }
+  .va-sent:last-child { border-bottom:0; }
+  .va-sent .sense { font-size:12px; color:var(--sub); margin-bottom:4px; }
+  .va-sent .e { font-size:15px; line-height:1.5; }
+  .va-sent .z { font-size:13px; color:var(--sub); margin-top:4px; line-height:1.5; }
+  .va-sent .read { font-size:12px; color:var(--accent); float:right; cursor:pointer; }
+
+  /* ---------- VARIANT B: dictionary style ---------- */
+  .vb-progress { display:flex; gap:8px; margin:16px 20px; }
+  .vb-progress .seg { flex:1; text-align:center; font-size:12px; color:var(--sub); border-bottom:3px solid var(--line); padding-bottom:6px; }
+  .vb-progress .seg.l1 { border-color:#22c55e; }
+  .vb-progress .seg.l2 { border-color:#f59e0b; }
+  .vb-progress .seg.l3 { border-color:#ef4444; }
+  .vb-pos { margin:0 20px 20px; }
+  .vb-pos h3 { font-size:16px; margin-bottom:8px; }
+  .vb-pos .sense { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+  .vb-pos .meaning { font-size:15px; line-height:1.5; margin-bottom:8px; }
+  .vb-ex { display:flex; gap:8px; padding:7px 0; border-top:1px dashed var(--line); }
+  .vb-ex:first-of-type { border-top:0; }
+  .vb-ex .lvl { margin-top:2px; flex-shrink:0; }
+  .vb-ex .txt { font-size:14px; }
+  .vb-ex .txt .z { display:block; font-size:12px; color:var(--sub); margin-top:2px; }
+  .vb-ex .num { font-size:11px; color:#c0c6cf; flex-shrink:0; }
+
+  /* ---------- VARIANT C: sentence reader ---------- */
+  .vc-stage { padding:16px 20px 0; text-align:center; }
+  .vc-dots { display:flex; justify-content:center; gap:6px; margin:12px 0 4px; }
+  .vc-dots .d { width:9px; height:9px; border-radius:50%; background:#e5e7eb; }
+  .vc-dots .d.l1 { background:#22c55e; }
+  .vc-dots .d.l2 { background:#f59e0b; }
+  .vc-dots .d.l3 { background:#ef4444; }
+  .vc-dots .d.cur { outline:2px solid var(--accent); outline-offset:2px; }
+  .vc-card { margin:0 20px; border:1px solid var(--line); border-radius:16px; padding:28px 22px; min-height:280px; display:flex; flex-direction:column; justify-content:center; }
+  .vc-card .sense { font-size:13px; color:var(--sub); text-align:center; }
+  .vc-card .e { font-size:20px; line-height:1.6; margin-top:14px; }
+  .vc-card .z { font-size:15px; color:var(--sub); margin-top:10px; line-height:1.6; }
+  .vc-card .lvl { position:absolute; }
+  .vc-nav { display:flex; justify-content:center; gap:24px; margin:16px 0; }
+  .vc-nav button { width:56px; height:56px; border-radius:50%; border:1px solid var(--line); background:#fff; font-size:20px; cursor:pointer; }
+  .vc-nav button:hover { border-color:var(--accent); color:var(--accent); }
+  .vc-all { margin:8px 20px 24px; border-top:1px solid var(--line); padding-top:12px; }
+  .vc-all summary { font-size:13px; color:var(--accent); cursor:pointer; }
+  .vc-all .item { display:flex; gap:8px; padding:8px 0; font-size:13px; }
+  .vc-all .item .z { color:var(--sub); }
+
+  /* floating switcher */
+  .switcher { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; background:#111; color:#fff; border-radius:999px; padding:8px 16px; z-index:99; box-shadow:0 4px 16px rgba(0,0,0,.3); }
+  .switcher button { background:transparent; border:0; color:#fff; font-size:18px; cursor:pointer; padding:0 6px; }
+  .switcher .label { font-size:13px; font-family:ui-monospace,monospace; }
+  .switcher .hint { font-size:11px; color:#888; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="phone" id="app"></div>
+
+<script>
+/* ============ shared data: word "run" (sample from content contract) ============ */
+const WORD = {
+  word: "run",
+  phonetic: { uk: "/rʌn/", us: "/rʌn/" },
+  senses: [
+    { pos: "v.", meaning: "to move using your legs, going faster than walking",
+      examples: [
+        { level: 1, en: "I run every morning.", zh: "我每天早上跑步。" },
+        { level: 1, en: "The children ran across the park.", zh: "孩子们跑过公园。" },
+        { level: 2, en: "She runs faster than anyone else in our class.", zh: "她跑得比班上任何人都快。" },
+        { level: 3, en: "Having run the length of the corridor, he collapsed breathless against the door.", zh: "跑完整个走廊后,他气喘吁吁地瘫靠在门上。" }
+      ]},
+    { pos: "v.", meaning: "to manage or operate a business",
+      examples: [
+        { level: 2, en: "They run a small coffee shop downtown.", zh: "他们在市中心经营一家小咖啡馆。" },
+        { level: 3, en: "She has been running the family firm single-handedly since her father retired.", zh: "自从父亲退休后,她一直独自经营着家族企业。" }
+      ]},
+    { pos: "n.", meaning: "an act of running or a journey",
+      examples: [
+        { level: 1, en: "Let's go for a run after dinner.", zh: "晚饭后我们去跑个步吧。" },
+        { level: 2, en: "He goes for a run along the river every weekend.", zh: "他每个周末都沿着河边跑一趟。" },
+        { level: 3, en: "The daily run had become a ritual he could not imagine giving up.", zh: "每日的跑步已成为他无法想象要放弃的习惯。" }
+      ]}
+  ],
+  phrases: [
+    { phrase: "run out of", en: "We ran out of milk before breakfast.", zh: "早餐前我们的牛奶喝完了。" },
+    { phrase: "run into", en: "I ran into an old friend at the station.", zh: "我在车站偶遇了一位老朋友。" }
+  ]
+};
+
+const FLATTENED = [];
+WORD.senses.forEach(s => s.examples.forEach(e => FLATTENED.push({ ...e, sense: `${s.pos} ${s.meaning.split(' ').slice(0,4).join(' ')}…` })));
+
+/* display config (EN / ZH / BOTH) */
+let mode = "both";
+let reviewState = "";
+const MODE_LABEL = { both: "中英", en: "仅英", zh: "仅中" };
+
+const h = (tag, attrs, ...children) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "html") el.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  children.forEach(c => { if (c != null) el.append(c); });
+  return el;
+};
+
+function renderDConfig(container) {
+  const bar = h("div", { class: "dconfig" });
+  for (const m of ["both", "en", "zh"]) {
+    bar.append(h("button", {
+      class: mode === m ? "on" : "",
+      onclick: () => { mode = m; render(); }
+    }, MODE_LABEL[m]));
+  }
+  container.append(bar);
+}
+
+/* ============ VARIANT A: 分层阅读流 (level-flow) ============ */
+function VariantA() {
+  const root = h("div", {});
+  root.append(renderWordHeader(true));
+  const levels = h("div", { class: "va-levels" });
+  const path = h("div", { class: "va-path" },
+    h("span", { class: "step done" }, "L1"),
+    h("span", { class: "arr" }, "→"),
+    h("span", { class: "step" }, "L2"),
+    h("span", { class: "arr" }, "→"),
+    h("span", { class: "step" }, "L3"),
+    h("span", { class: "go" }, "读完 L1 ✓")
+  );
+  levels.append(path);
+
+  const levelNames = { 1: "简单句 · 核心用法", 2: "从句与搭配", 3: "复合句与书面语" };
+  [1, 2, 3].forEach(lv => {
+    const sents = FLATTENED.filter(s => s.level === lv);
+    const block = h("div", { class: "va-block" });
+    const header = h("header", {},
+      h("span", { class: `lvl lvl-${lv}` }, `L${lv}`),
+      h("h2", {}, levelNames[lv]),
+      h("span", { class: "desc" }, `${sents.length}/3 已读`)
+    );
+    block.append(header);
+    sents.forEach(s => {
+      block.append(h("div", { class: "va-sent" },
+        h("div", { class: "sense" }, s.sense, h("span", { class: "read" }, "已读")),
+        h("div", { class: "etext", "data-hide": mode === "zh" ? "1" : "0" }, s.en),
+        mode !== "en" ? h("div", { class: "ztext", "data-hide": mode === "en" ? "1" : "0" }, s.zh) : null
+      ));
+    });
+    levels.append(block);
+  });
+
+  root.append(levels, renderPhrases(), renderReview());
+  return root;
+}
+
+/* ============ VARIANT B: 词典式 (dictionary style, POS-first) ============ */
+function VariantB() {
+  const root = h("div", {});
+  root.append(renderWordHeader(true));
+  root.append(h("div", { class: "vb-progress" },
+    h("div", { class: "seg l1" }, "L1 ×3"),
+    h("div", { class: "seg l2" }, "L2 ×3"),
+    h("div", { class: "seg l3" }, "L3 ×3")
+  ));
+  const posSection = h("div", { class: "vb-pos" });
+  let senseIdx = 0;
+  WORD.senses.forEach(s => {
+    posSection.append(h("h3", {}, s.pos));
+    const card = h("div", { class: "sense" });
+    card.append(h("div", { class: "meaning" }, s.meaning));
+    s.examples.forEach(e => {
+      senseIdx++;
+      card.append(h("div", { class: "vb-ex" },
+        h("span", { class: `lvl lvl-${e.level}` }, `L${e.level}`),
+        h("div", { class: "txt" },
+          h("span", { class: "etext", "data-hide": mode === "zh" ? "1" : "0" }, e.en),
+          mode !== "en" ? h("span", { class: "ztext", "data-hide": mode === "en" ? "1" : "0" }, e.zh) : null
+        ),
+        h("span", { class: "num" }, String(senseIdx).padStart(2, "0"))
+      ));
+    });
+    posSection.append(card);
+  });
+  root.append(posSection, renderPhrases(), renderReview());
+  return root;
+}
+
+/* ============ VARIANT C: 逐句精读器 (sentence reader) ============ */
+function VariantC() {
+  const root = h("div", {});
+  root.append(renderWordHeader(false));
+  let idx = 0;
+  const stage = h("div", { class: "vc-stage" });
+  const dots = h("div", { class: "vc-dots" });
+  const card = h("div", { class: "vc-card" });
+
+  function draw() {
+    dots.innerHTML = "";
+    FLATTENED.forEach((s, i) => {
+      dots.append(h("span", { class: `d l${s.level}${i === idx ? " cur" : ""}` }));
+    });
+    const s = FLATTENED[idx];
+    card.innerHTML = "";
+    card.append(h("div", { class: "sense" }, s.sense));
+    if (mode !== "zh") card.append(h("div", { class: "e" }, s.en));
+    if (mode !== "en") card.append(h("div", { class: "z" }, s.zh));
+  }
+  draw();
+  stage.append(dots, card);
+  const nav = h("div", { class: "vc-nav" },
+    h("button", { onclick: () => { idx = (idx - 1 + FLATTENED.length) % FLATTENED.length; draw(); } }, "←"),
+    h("button", { onclick: () => { idx = (idx + 1) % FLATTENED.length; draw(); } }, "→")
+  );
+  const all = h("details", { class: "vc-all" },
+    h("summary", {}, "查看全部 9 句"),
+    ...FLATTENED.map(s => h("div", { class: "item" },
+      h("span", { class: `lvl lvl-${s.level}` }, `L${s.level}`),
+      h("span", {}, s.en, h("span", { class: "z" }, mode !== "en" ? ` — ${s.zh}` : ""))
+    ))
+  );
+  root.append(stage, nav, all, renderPhrases(), renderReview());
+  return root;
+}
+
+/* ============ shared pieces ============ */
+function renderWordHeader(showPath) {
+  const head = h("div", { class: "wordhead" },
+    h("div", { class: "word" }, WORD.word),
+    h("div", { class: "ipa" },
+      h("span", {}, h("b", {}, "英"), ` ${WORD.phonetic.uk}`),
+      h("span", {}, h("b", {}, "美"), ` ${WORD.phonetic.us}`)
+    ),
+    h("div", { class: "pronrow" },
+      h("button", { class: "pronbtn", onclick: () => window.speechSynthesis?.speak(new SpeechSynthesisUtterance(WORD.word)) }, "🔊 英音"),
+      h("button", { class: "pronbtn", onclick: () => { const u = new SpeechSynthesisUtterance(WORD.word); u.lang = "en-US"; window.speechSynthesis?.speak(u); } }, "🔊 美音")
+    ),
+    renderReview()
+  );
+  return head;
+}
+
+function renderReview() {
+  const box = h("div", { class: "review" },
+    h("button", { class: "yes" + (reviewState === "yes" ? " active" : ""), onclick: () => { reviewState = "yes"; render(); } }, "✓ 认识"),
+    h("button", { class: "no" + (reviewState === "no" ? " active" : ""), onclick: () => { reviewState = "no"; render(); } }, "✗ 不认识")
+  );
+  return box;
+}
+
+function renderPhrases() {
+  return h("div", { class: "phrasebox" },
+    h("h3", {}, "常用短语"),
+    ...WORD.phrases.map(p => h("div", { class: "phrase" },
+      h("div", { class: "p" }, p.phrase),
+      h("div", { class: "e" }, p.en),
+      mode !== "en" ? h("div", { class: "z" }, p.zh) : null
+    ))
+  );
+}
+
+/* ============ app shell + switcher ============ */
+const app = document.getElementById("app");
+const VARIANTS = { A: VariantA, B: VariantB, C: VariantC };
+let current = new URLSearchParams(location.search).get("variant") || "A";
+
+function render() {
+  app.innerHTML = "";
+  renderDConfig(app);
+  app.append(VARIANTS[current]());
+}
+
+const switcher = h("div", { class: "switcher" },
+  h("button", { onclick: () => switchVariant(-1) }, "◀"),
+  h("span", { class: "label" }, `${current} — ${{ A: "分层阅读流", B: "词典式", C: "逐句精读器" }[current]}`),
+  h("button", { onclick: () => switchVariant(1) }, "▶"),
+  h("span", { class: "hint" }, "← →")
+);
+document.body.append(switcher);
+
+function switchVariant(d) {
+  const keys = Object.keys(VARIANTS);
+  current = keys[(keys.indexOf(current) + d + keys.length) % keys.length];
+  history.replaceState(null, "", `?variant=${current}`);
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea")) return;
+  if (e.key === "ArrowLeft") switchVariant(-1);
+  if (e.key === "ArrowRight") switchVariant(1);
+});
+
+render();
+</script>
+</body>
+</html>
