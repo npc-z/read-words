@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生成任务控制台原型 — Variant A/B/C</title>
+<style>
+  :root { --ink:#1a1a1a; --sub:#6b7280; --line:#e5e7eb; --accent:#2563eb; --ok:#16a34a; --warn:#d97706; --err:#dc2626; --bg:#fafafa; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); }
+  .phone { max-width:480px; margin:0 auto; min-height:100vh; background:#fff; box-shadow:0 0 24px rgba(0,0,0,.06); position:relative; }
+
+  .head { padding:20px 20px 12px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:10px; }
+  .head h1 { font-size:20px; }
+  .head .sub { font-size:12px; color:var(--sub); }
+  .hintbar { margin:12px 20px; font-size:12px; color:var(--accent); background:#f0f6ff; border:1px solid #dbe7ff; border-radius:10px; padding:8px 12px; }
+
+  /* shared control row */
+  .ctrls { display:flex; gap:10px; margin:12px 20px; }
+  .ctrls button { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px 0; font-size:14px; cursor:pointer; }
+  .ctrls button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .ctrls button:disabled { opacity:.45; cursor:default; }
+  .ctrls button.danger { color:var(--err); }
+
+  .badge { display:inline-block; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:700; color:#fff; }
+  .b-ok { background:var(--ok); }
+  .b-fail { background:var(--err); }
+  .b-run { background:var(--accent); }
+  .b-pause { background:var(--warn); }
+  .b-done { background:#9ca3af; }
+
+  /* ---------- VARIANT A: 大进度卡 ---------- */
+  .va-wrap { margin:16px 20px; }
+  .va-card { border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .va-card .name { display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px; }
+  .va-prog { margin:16px 0 8px; height:14px; border-radius:999px; background:#f0f1f3; overflow:hidden; position:relative; }
+  .va-prog i { position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg,var(--accent),#60a5fa); border-radius:999px; }
+  .va-prog i.err { background:var(--err); opacity:.5; }
+  .va-stats { display:flex; justify-content:space-between; font-size:12px; color:var(--sub); }
+  .va-stats b { color:var(--ink); }
+  .va-queue { margin-top:14px; }
+  .va-queue .qrow { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px dashed var(--line); font-size:13px; }
+  .va-queue .qrow:first-child { border-top:0; }
+  .va-queue .w { flex:1; }
+  .va-queue .st { margin-left:auto; font-size:12px; color:var(--sub); }
+  .va-queue .fail { color:var(--err); }
+
+  /* ---------- VARIANT B: 分步向导 ---------- */
+  .vb-wrap { margin:16px 20px; }
+  .vb-steps { display:flex; gap:6px; margin-bottom:16px; }
+  .vb-steps .step { flex:1; text-align:center; font-size:12px; color:var(--sub); border-bottom:3px solid var(--line); padding-bottom:8px; }
+  .vb-steps .step.on { color:var(--accent); border-color:var(--accent); font-weight:700; }
+  .vb-panel { border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .vb-big { font-size:34px; font-weight:800; text-align:center; }
+  .vb-big .pct { font-size:16px; font-weight:600; color:var(--sub); }
+  .vb-detail { margin-top:12px; font-size:13px; color:var(--sub); text-align:center; }
+  .vb-detail b { color:var(--ink); }
+  .vb-mini { margin-top:16px; border-top:1px dashed var(--line); padding-top:12px; }
+  .vb-mini .row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
+  .vb-mini .row .k { color:var(--sub); }
+
+  /* ---------- VARIANT C: 词表驱动 ---------- */
+  .vc-wrap { margin:16px 20px; }
+  .vc-toolbar { display:flex; gap:8px; margin-bottom:12px; }
+  .vc-toolbar input { flex:1; border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:13px; }
+  .vc-filters { display:flex; gap:6px; margin-bottom:12px; }
+  .vc-filters span { border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:12px; color:var(--sub); cursor:pointer; }
+  .vc-filters span.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .vc-list { border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .vc-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  .vc-row:last-child { border-bottom:0; }
+  .vc-row .w { font-weight:600; }
+  .vc-row .me { color:var(--sub); font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vc-row .re { font-size:12px; color:var(--accent); cursor:pointer; }
+  .vc-row .re:disabled { color:#c0c6cf; cursor:default; }
+  .vc-row.done .w { color:#9ca3af; text-decoration:line-through; }
+  .vc-sum { display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:var(--sub); }
+
+  /* floating switcher */
+  .switcher { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; background:#111; color:#fff; border-radius:999px; padding:8px 16px; z-index:99; box-shadow:0 4px 16px rgba(0,0,0,.3); }
+  .switcher button { background:transparent; border:0; color:#fff; font-size:18px; cursor:pointer; padding:0 6px; }
+  .switcher .label { font-size:13px; font-family:ui-monospace,monospace; }
+  .switcher .hint { font-size:11px; color:#888; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="phone" id="app"></div>
+<script>
+const h = (tag, attrs, ...children) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "html") el.innerHTML = v;
+    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  children.forEach(c => { if (c != null) el.append(c); });
+  return el;
+};
+
+/* ============ shared state: a running task ============ */
+let state = {
+  total: 500, done: 327, failed: 4, paused: false, budgetExhausted: false, taskEnded: false
+};
+const FAILED_WORDS = [
+  { w: "serendipity", me: "n. 意外发现珍宝的能力", err: "结构校验失败(2/2)" },
+  { w: "ubiquitous", me: "adj. 无处不在的", err: "网络超时(3/3)" },
+  { w: "ephemeral", me: "adj. 短暂的", err: "结构校验失败(2/2)" },
+  { w: "quintessential", me: "adj. 典型的", err: "网络超时(3/3)" }
+];
+
+function header() {
+  return h("div", { class: "head" },
+    h("h1", {}, "生成任务"),
+    h("span", { class: "sub" }, "高考词集 · 共 500 词")
+  );
+}
+
+function budgetHint() {
+  if (state.budgetExhausted) {
+    return h("div", { class: "hintbar" }, "已达今日生成预算(150/150)。预算将于明日 00:00 重置。");
+  }
+  if (state.taskEnded) {
+    return h("div", { class: "hintbar" }, "任务已完成:成功 323 词,失败 4 词。可重试失败词或继续下一批次(预算剩余 0/150)。");
+  }
+  return h("div", { class: "hintbar" }, "预算:已用 150/150 · 本任务 327/500 词内无预算限制");
+}
+
+function ctrls() {
+  const btnPause = h("button", {
+    onclick: () => { state.paused = !state.paused; render(); }
+  }, state.paused ? "▶ 恢复" : "⏸ 暂停");
+  const btnCancel = h("button", {
+    class: "danger",
+    onclick: () => { state.taskEnded = true; state.paused = false; render(); }
+  }, "✕ 取消任务");
+  const btnNext = h("button", {
+    class: "primary",
+    disabled: !(state.taskEnded || state.budgetExhausted),
+    onclick: () => { state.budgetExhausted = false; state.taskEnded = false; state.done = 0; state.failed = 0; render(); }
+  }, "继续下一批次 ▶");
+  return h("div", { class: "ctrls" }, btnPause, btnCancel, btnNext);
+}
+
+/* ============ VARIANT A: 大进度卡 ============ */
+function VariantA() {
+  const root = h("div", {});
+  root.append(header(), budgetHint());
+  const wrap = h("div", { class: "va-wrap" });
+  const pct = Math.round((state.done + state.failed) / state.total * 100);
+  const card = h("div", { class: "va-card" },
+    h("div", { class: "name" },
+      "高考词集批量生成",
+      h("span", { class: "badge " + (state.paused ? "b-pause" : state.taskEnded ? "b-done" : "b-run") },
+        state.paused ? "已暂停" : state.taskEnded ? "已完成" : "生成中")
+    ),
+    h("div", { class: "va-prog" },
+      h("i", { style: `width:${pct}%;background:linear-gradient(90deg,var(--accent),#60a5fa)` }),
+      state.failed > 0 ? h("i", { style: `left:${state.done / state.total * 100}%;width:${state.failed / state.total * 100}%` }) : null
+    ),
+    h("div", { class: "va-stats" },
+      h("span", {}, `完成 ${h("b", {}, state.done)} / ${state.total}`),
+      h("span", {}, `失败 ${h("b", {}, state.failed)}`),
+      h("span", {}, `${pct}%`)
+    ),
+    h("div", { class: "va-queue" },
+      h("div", { class: "qrow" }, h("span", { class: "w" }, "正在生成"), h("span", { class: "st" }, "ancillary · L3 例句"), h("span", { class: "badge b-run" }, "…")),
+      h("div", { class: "qrow" }, h("span", { class: "w" }, "排队中"), h("span", { class: "st" }, "172 词"), h("span", { class: "badge b-done" }, "待")),
+      ...FAILED_WORDS.map(f => h("div", { class: "qrow" },
+        h("span", { class: "w fail" }, f.w),
+        h("span", { class: "st fail" }, f.err),
+        h("span", { class: "badge b-fail" }, "失败")
+      ))
+    )
+  );
+  wrap.append(card);
+  root.append(wrap, ctrls());
+  return root;
+}
+
+/* ============ VARIANT B: 分步向导 ============ */
+function VariantB() {
+  const root = h("div", {});
+  root.append(header(), budgetHint());
+  const wrap = h("div", { class: "vb-wrap" });
+  const pct = Math.round((state.done + state.failed) / state.total * 100);
+  const steps = h("div", { class: "vb-steps" },
+    h("div", { class: "step on" }, "1 生成中"),
+    h("div", { class: "step" }, "2 失败处理"),
+    h("div", { class: "step" }, "3 完成")
+  );
+  const panel = h("div", { class: "vb-panel" },
+    h("div", { class: "vb-big" },
+      state.taskEnded ? "323" : String(state.done),
+      h("span", { class: "pct" }, state.taskEnded ? " 完成" : ` / ${state.total} · ${pct}%`)
+    ),
+    h("div", { class: "vb-detail" },
+      state.taskEnded
+        ? h("span", {}, "成功 ", h("b", {}, "323"), " · 失败 ", h("b", {}, "4"), " · 跳过 0")
+        : h("span", {}, "正在生成 ", h("b", {}, "ancillary"), " (L3 例句)", state.paused ? " · 已暂停" : "")
+    ),
+    h("div", { class: "vb-mini" },
+      h("div", { class: "row" }, h("span", { class: "k" }, "预计剩余"), h("span", {}, state.taskEnded ? "—" : "约 12 分钟")),
+      h("div", { class: "row" }, h("span", { class: "k" }, "今日预算"), h("span", {}, "150/150")),
+      h("div", { class: "row" }, h("span", { class: "k" }, "下次续点"), h("span", {}, "每日阅读量 ×3 = 150 词"))
+    )
+  );
+  wrap.append(steps, panel);
+  root.append(wrap, ctrls());
+  return root;
+}
+
+/* ============ VARIANT C: 词表驱动 ============ */
+function VariantC() {
+  const root = h("div", {});
+  root.append(header(), budgetHint());
+  const wrap = h("div", { class: "vc-wrap" });
+  const toolbar = h("div", { class: "vc-toolbar" },
+    h("input", { placeholder: "搜索单词…" }),
+    h("button", { class: "primary", onclick: () => { render(); } }, "重试失败 4")
+  );
+  const filters = h("div", { class: "vc-filters" },
+    h("span", { class: "on" }, "全部 500"),
+    h("span", {}, "未生成 169"),
+    h("span", {}, "失败 4"),
+    h("span", {}, "已完成 327")
+  );
+  const list = h("div", { class: "vc-list" });
+  const words = [
+    { w: "ancillary", me: "adj. 辅助的", st: "run" },
+    { w: "quintessential", me: "adj. 典型的", st: "fail" },
+    { w: "ephemeral", me: "adj. 短暂的", st: "fail" },
+    { w: "ubiquitous", me: "adj. 无处不在的", st: "fail" },
+    { w: "serendipity", me: "n. 意外发现珍宝的能力", st: "fail" },
+    { w: "abolish", me: "v. 废除", st: "done" },
+    { w: "benevolent", me: "adj. 仁慈的", st: "done" },
+    { w: "contemplate", me: "v. 沉思", st: "done" },
+    { w: "diligent", me: "adj. 勤勉的", st: "done" },
+    { w: "eloquent", me: "adj. 雄辩的", st: "done" }
+  ];
+  words.forEach(w => {
+    const row = h("div", { class: "vc-row" + (w.st === "done" ? " done" : "") },
+      h("span", { class: "w" }, w.w),
+      h("span", { class: "me" }, w.me),
+      w.st === "run" ? h("span", { class: "badge b-run" }, "生成中")
+        : w.st === "fail" ? h("span", { class: "badge b-fail" }, "失败")
+        : h("span", { class: "badge b-done" }, "完成"),
+      w.st === "fail" ? h("span", { class: "re", onclick: () => { render(); } }, "重试") : null
+    );
+    list.append(row);
+  });
+  wrap.append(toolbar, filters, list,
+    h("div", { class: "vc-sum" }, h("span", {}, "词集 500 词"), h("span", {}, "未生成 169 · 失败 4"))
+  );
+  root.append(wrap, ctrls());
+  return root;
+}
+
+/* ============ app shell + switcher ============ */
+const app = document.getElementById("app");
+const VARIANTS = { A: VariantA, B: VariantB, C: VariantC };
+let current = new URLSearchParams(location.search).get("variant") || "A";
+
+function render() {
+  app.innerHTML = "";
+  app.append(VARIANTS[current]());
+}
+
+const switcher = h("div", { class: "switcher" },
+  h("button", { onclick: () => switchVariant(-1) }, "◀"),
+  h("span", { class: "label" }, `${current} — ${{ A: "大进度卡", B: "分步向导", C: "词表驱动" }[current]}`),
+  h("button", { onclick: () => switchVariant(1) }, "▶"),
+  h("span", { class: "hint" }, "← →")
+);
+document.body.append(switcher);
+
+function switchVariant(d) {
+  const keys = Object.keys(VARIANTS);
+  current = keys[(keys.indexOf(current) + d + keys.length) % keys.length];
+  history.replaceState(null, "", `?variant=${current}`);
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea")) return;
+  if (e.key === "ArrowLeft") switchVariant(-1);
+  if (e.key === "ArrowRight") switchVariant(1);
+});
+
+render();
+</script>
+</body>
+</html>
