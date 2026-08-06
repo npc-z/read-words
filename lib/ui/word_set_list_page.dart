@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/generation/generation_queue.dart';
 import 'package:read_words/import/import_service.dart';
 import 'package:read_words/ui/settings_page.dart';
 import 'package:read_words/ui/word_list_page.dart';
 
 /// 词集列表页(§7.3:词集即中心,创建 → 导入单词表)
 class WordSetListPage extends StatefulWidget {
-  const WordSetListPage({super.key, required this.repositories});
+  const WordSetListPage({
+    super.key,
+    required this.repositories,
+    required this.queue,
+  });
 
   final Repositories repositories;
+  final GenerationQueue queue;
 
   @override
   State<WordSetListPage> createState() => _WordSetListPageState();
@@ -157,6 +163,7 @@ class _WordSetListPageState extends State<WordSetListPage> {
                         builder: (_) => WordListPage(
                           wordSet: set,
                           repositories: widget.repositories,
+                          queue: widget.queue,
                         ),
                       ),
                     );

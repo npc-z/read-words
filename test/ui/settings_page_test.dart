@@ -4,8 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/data/settings.dart';
+import 'package:read_words/generation/generation_queue.dart';
+import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/ui/settings_page.dart';
 import 'package:read_words/ui/word_set_list_page.dart';
+
+import '../generation/fake_client.dart';
 
 void main() {
   late AppDatabase db;
@@ -125,7 +129,16 @@ void main() {
   });
 
   testWidgets('word set list page has settings entry that opens the page', (tester) async {
-    await tester.pumpWidget(MaterialApp(home: WordSetListPage(repositories: repo)));
+    final queue = GenerationQueue(
+      repositories: repo,
+      service: GenerationService(
+        client: FakeClient(),
+        repositories: repo,
+      ),
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: WordSetListPage(repositories: repo, queue: queue),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('设置'), findsOneWidget);

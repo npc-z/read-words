@@ -261,6 +261,92 @@ class Repositories {
     );
   }
 
+  /// 生成队列:插入任务(词已有待处理任务则忽略;请求即时生成时提升优先级)(§6.1)
+  Future<void> insertGenerationTask(int wordId, {required int priority}) async {
+    await db.customStatement(
+      'INSERT OR IGNORE INTO generation_tasks (word_id, priority) VALUES (?, ?) '
+      'ON CONFLICT(word_id) DO UPDATE SET priority = MAX(priority, excluded.priority)',
+      [wordId, priority],
+    );
+  }
+
+  /// 生成队列:归还被领取的任务(预算达限未消费,回 queued)
+  Future<void> unclaimGenerationTask(int taskId) async {
+    await (db.update(db.generationTasks)
+          ..where((t) => t.id.equals(taskId)))
+        .write(const GenerationTasksCompanion(state: Value('queued')));
+  }
+
+  /// 生成队列:原子领取下一个任务(优先级高先、FIFO),返回已标记 generating 的任务
+  Future<GenerationTask?> claimNextGenerationTask() async {
+    final rows = await db.customSelect(
+      'UPDATE generation_tasks SET state = ? '
+      'WHERE id = (SELECT id FROM generation_tasks WHERE state = ? '
+      '  ORDER BY priority DESC, id ASC LIMIT 1) '
+      'RETURNING id, word_id, priority, queued_at',
+      variables: [Variable('generating'), Variable('queued')],
+    ).get();
+    if (rows.isEmpty) return null;
+    final r = rows.single.data;
+    return GenerationTask(
+      id: r['id'] as int,
+      wordId: r['word_id'] as int,
+      priority: r['priority'] as int,
+      state: 'generating',
+      queuedAt: DateTime.fromMillisecondsSinceEpoch(
+        (r['queued_at'] as int) * 1000,
+      ),
+    );
+  }
+
+  /// 生成队列:删除任务(结算后)
+  Future<void> deleteGenerationTask(int taskId) async {
+    await (db.delete(db.generationTasks)..where((t) => t.id.equals(taskId))).go();
+  }
+
+  /// 生成队列:按词删除任务
+  Future<void> deleteGenerationTaskByWord(int wordId) async {
+    await (db.delete(db.generationTasks)
+          ..where((t) => t.wordId.equals(wordId)))
+        .go();
+  }
+
+  /// 生成队列:词集的后台待处理词(取消批次用,§6.1)
+  Future<List<int>> backgroundPendingWordIds(int wordSetId) async {
+    final rows = await db.customSelect(
+      'SELECT t.word_id AS word_id FROM generation_tasks t '
+      'JOIN words w ON w.id = t.word_id '
+      'WHERE w.word_set_id = ? AND t.priority = 0 AND t.state = ?',
+      variables: [Variable(wordSetId), Variable('queued')],
+    ).get();
+    return [for (final r in rows) r.data['word_id'] as int];
+  }
+
+  /// 生成队列:续跑复位——generating 状态的任务视为中断,回 queued(词状态同步)。
+  /// 中断的后台任务已预约的预算一并归还,避免续跑重复计账。
+  Future<void> resetInterruptedTasks() async {
+    await db.transaction(() async {
+      // 先归还中断后台任务占用的预算(即时任务不占预算),再复位状态
+      await db.customStatement(
+        "UPDATE budget_days SET count = MAX(count - (SELECT COUNT(*) "
+        "FROM generation_tasks WHERE state = 'generating' AND priority = 0), 0)",
+      );
+      await db.customStatement(
+        "UPDATE generation_tasks SET state = 'queued' WHERE state = 'generating'",
+      );
+      await (db.update(db.words)
+            ..where((w) => w.status.equals('generating')))
+          .write(const WordsCompanion(status: Value('queued')));
+    });
+  }
+
+  /// 生成队列:待处理任务数
+  Future<int> pendingGenerationTaskCount() async {
+    return db.customSelect(
+      'SELECT COUNT(*) AS c FROM generation_tasks',
+    ).get().then((rows) => rows.single.data['c'] as int);
+  }
+
   static T _enumOr<T extends Enum>(List<T> values, String? name, T fallback) {
     for (final v in values) {
       if (v.name == name) return v;

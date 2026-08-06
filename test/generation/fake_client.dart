@@ -14,6 +14,12 @@ class FakeClient extends DeepSeekClient {
   String? requestedWord;
   int callCount = 0;
 
+  /// 生成调用顺序(词形),调用开始即记录
+  final List<String> callOrder = [];
+
+  /// 完成顺序(词形):gate 通过、内容返回后才记录(用于断言抢占/优先级)
+  final List<String> completionOrder = [];
+
   /// 每次调用按序消费的 gate 列表;为空不阻塞(用于观察并发中间态)
   final List<Completer<void>> gates = [];
 
@@ -30,6 +36,7 @@ class FakeClient extends DeepSeekClient {
   }) async {
     callCount++;
     requestedWord = word;
+    callOrder.add(word);
     if (gates.isNotEmpty) {
       final g = gates.removeAt(0);
       await g.future;
@@ -60,6 +67,7 @@ class FakeClient extends DeepSeekClient {
           'unclassified_examples': [],
         };
     final content = GeneratedWordContent.fromJson(json);
+    completionOrder.add(word);
     return GenerationResult(content: content!, rawJson: jsonEncode(json));
   }
 }

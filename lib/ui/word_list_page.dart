@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/generation/generation_queue.dart';
 import 'package:read_words/ui/task_console_page.dart';
 import 'package:read_words/ui/word_detail_page.dart';
 
@@ -10,10 +11,12 @@ class WordListPage extends StatefulWidget {
     super.key,
     required this.wordSet,
     required this.repositories,
+    required this.queue,
   });
 
   final WordSet wordSet;
   final Repositories repositories;
+  final GenerationQueue queue;
 
   @override
   State<WordListPage> createState() => _WordListPageState();
@@ -50,6 +53,7 @@ class _WordListPageState extends State<WordListPage> {
                   builder: (_) => TaskConsolePage(
                     wordSet: widget.wordSet,
                     repositories: widget.repositories,
+                    queue: widget.queue,
                   ),
                 ),
               );
@@ -88,6 +92,7 @@ class _WordListPageState extends State<WordListPage> {
                       builder: (_) => WordDetailPage(
                         word: w,
                         repositories: widget.repositories,
+                        queue: widget.queue,
                       ),
                     ),
                   );
@@ -108,6 +113,7 @@ class _WordListPageState extends State<WordListPage> {
               builder: (_) => WordDetailPage(
                 word: words.first,
                 repositories: widget.repositories,
+                queue: widget.queue,
               ),
             ),
           );

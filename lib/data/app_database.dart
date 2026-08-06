@@ -120,6 +120,16 @@ class BudgetDays extends Table {
   Set<Column> get primaryKey => {day};
 }
 
+/// 生成任务队列(§6.1 单队列双优先级):行存在即待处理
+@DataClassName('GenerationTask')
+class GenerationTasks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get wordId => integer().references(Words, #id).unique()();
+  IntColumn get priority => integer()(); // 0=后台预生成 1=即时生成
+  TextColumn get state => text().withDefault(const Constant('queued'))(); // queued/generating
+  DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(tables: [
   WordSets,
   Words,
@@ -129,12 +139,13 @@ class BudgetDays extends Table {
   PendingQueues,
   SettingsTable,
   BudgetDays,
+  GenerationTasks,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -147,6 +158,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             // v2 无预算表,新建即可
             await m.create(budgetDays);
+          }
+          if (from < 4) {
+            // v3 无生成任务表,新建即可
+            await m.create(generationTasks);
           }
         },
       );

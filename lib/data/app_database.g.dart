@@ -2730,6 +2730,347 @@ class BudgetDaysCompanion extends UpdateCompanion<BudgetDay> {
   }
 }
 
+class $GenerationTasksTable extends GenerationTasks
+    with TableInfo<$GenerationTasksTable, GenerationTask> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GenerationTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
+  @override
+  late final GeneratedColumn<int> wordId = GeneratedColumn<int>(
+    'word_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES words (id)',
+    ),
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('queued'),
+  );
+  static const VerificationMeta _queuedAtMeta = const VerificationMeta(
+    'queuedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> queuedAt = GeneratedColumn<DateTime>(
+    'queued_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, wordId, priority, state, queuedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'generation_tasks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GenerationTask> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('word_id')) {
+      context.handle(
+        _wordIdMeta,
+        wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_wordIdMeta);
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_priorityMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('queued_at')) {
+      context.handle(
+        _queuedAtMeta,
+        queuedAt.isAcceptableOrUnknown(data['queued_at']!, _queuedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GenerationTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GenerationTask(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      wordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}word_id'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      queuedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}queued_at'],
+      )!,
+    );
+  }
+
+  @override
+  $GenerationTasksTable createAlias(String alias) {
+    return $GenerationTasksTable(attachedDatabase, alias);
+  }
+}
+
+class GenerationTask extends DataClass implements Insertable<GenerationTask> {
+  final int id;
+  final int wordId;
+  final int priority;
+  final String state;
+  final DateTime queuedAt;
+  const GenerationTask({
+    required this.id,
+    required this.wordId,
+    required this.priority,
+    required this.state,
+    required this.queuedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['word_id'] = Variable<int>(wordId);
+    map['priority'] = Variable<int>(priority);
+    map['state'] = Variable<String>(state);
+    map['queued_at'] = Variable<DateTime>(queuedAt);
+    return map;
+  }
+
+  GenerationTasksCompanion toCompanion(bool nullToAbsent) {
+    return GenerationTasksCompanion(
+      id: Value(id),
+      wordId: Value(wordId),
+      priority: Value(priority),
+      state: Value(state),
+      queuedAt: Value(queuedAt),
+    );
+  }
+
+  factory GenerationTask.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GenerationTask(
+      id: serializer.fromJson<int>(json['id']),
+      wordId: serializer.fromJson<int>(json['wordId']),
+      priority: serializer.fromJson<int>(json['priority']),
+      state: serializer.fromJson<String>(json['state']),
+      queuedAt: serializer.fromJson<DateTime>(json['queuedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'wordId': serializer.toJson<int>(wordId),
+      'priority': serializer.toJson<int>(priority),
+      'state': serializer.toJson<String>(state),
+      'queuedAt': serializer.toJson<DateTime>(queuedAt),
+    };
+  }
+
+  GenerationTask copyWith({
+    int? id,
+    int? wordId,
+    int? priority,
+    String? state,
+    DateTime? queuedAt,
+  }) => GenerationTask(
+    id: id ?? this.id,
+    wordId: wordId ?? this.wordId,
+    priority: priority ?? this.priority,
+    state: state ?? this.state,
+    queuedAt: queuedAt ?? this.queuedAt,
+  );
+  GenerationTask copyWithCompanion(GenerationTasksCompanion data) {
+    return GenerationTask(
+      id: data.id.present ? data.id.value : this.id,
+      wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      state: data.state.present ? data.state.value : this.state,
+      queuedAt: data.queuedAt.present ? data.queuedAt.value : this.queuedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GenerationTask(')
+          ..write('id: $id, ')
+          ..write('wordId: $wordId, ')
+          ..write('priority: $priority, ')
+          ..write('state: $state, ')
+          ..write('queuedAt: $queuedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, wordId, priority, state, queuedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GenerationTask &&
+          other.id == this.id &&
+          other.wordId == this.wordId &&
+          other.priority == this.priority &&
+          other.state == this.state &&
+          other.queuedAt == this.queuedAt);
+}
+
+class GenerationTasksCompanion extends UpdateCompanion<GenerationTask> {
+  final Value<int> id;
+  final Value<int> wordId;
+  final Value<int> priority;
+  final Value<String> state;
+  final Value<DateTime> queuedAt;
+  const GenerationTasksCompanion({
+    this.id = const Value.absent(),
+    this.wordId = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.state = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+  });
+  GenerationTasksCompanion.insert({
+    this.id = const Value.absent(),
+    required int wordId,
+    required int priority,
+    this.state = const Value.absent(),
+    this.queuedAt = const Value.absent(),
+  }) : wordId = Value(wordId),
+       priority = Value(priority);
+  static Insertable<GenerationTask> custom({
+    Expression<int>? id,
+    Expression<int>? wordId,
+    Expression<int>? priority,
+    Expression<String>? state,
+    Expression<DateTime>? queuedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (wordId != null) 'word_id': wordId,
+      if (priority != null) 'priority': priority,
+      if (state != null) 'state': state,
+      if (queuedAt != null) 'queued_at': queuedAt,
+    });
+  }
+
+  GenerationTasksCompanion copyWith({
+    Value<int>? id,
+    Value<int>? wordId,
+    Value<int>? priority,
+    Value<String>? state,
+    Value<DateTime>? queuedAt,
+  }) {
+    return GenerationTasksCompanion(
+      id: id ?? this.id,
+      wordId: wordId ?? this.wordId,
+      priority: priority ?? this.priority,
+      state: state ?? this.state,
+      queuedAt: queuedAt ?? this.queuedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (wordId.present) {
+      map['word_id'] = Variable<int>(wordId.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (queuedAt.present) {
+      map['queued_at'] = Variable<DateTime>(queuedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GenerationTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('wordId: $wordId, ')
+          ..write('priority: $priority, ')
+          ..write('state: $state, ')
+          ..write('queuedAt: $queuedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2742,6 +3083,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PendingQueuesTable pendingQueues = $PendingQueuesTable(this);
   late final $SettingsTableTable settingsTable = $SettingsTableTable(this);
   late final $BudgetDaysTable budgetDays = $BudgetDaysTable(this);
+  late final $GenerationTasksTable generationTasks = $GenerationTasksTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2755,6 +3099,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pendingQueues,
     settingsTable,
     budgetDays,
+    generationTasks,
   ];
 }
 
@@ -3102,6 +3447,26 @@ final class $$WordsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$GenerationTasksTable, List<GenerationTask>>
+  _generationTasksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.generationTasks,
+    aliasName: 'words__id__generation_tasks__word_id',
+  );
+
+  $$GenerationTasksTableProcessedTableManager get generationTasksRefs {
+    final manager = $$GenerationTasksTableTableManager(
+      $_db,
+      $_db.generationTasks,
+    ).filter((f) => f.wordId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _generationTasksRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$WordsTableFilterComposer extends Composer<_$AppDatabase, $WordsTable> {
@@ -3231,6 +3596,31 @@ class $$WordsTableFilterComposer extends Composer<_$AppDatabase, $WordsTable> {
           }) => $$ReviewStatesTableTableFilterComposer(
             $db: $db,
             $table: $db.reviewStatesTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> generationTasksRefs(
+    Expression<bool> Function($$GenerationTasksTableFilterComposer f) f,
+  ) {
+    final $$GenerationTasksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.generationTasks,
+      getReferencedColumn: (t) => t.wordId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GenerationTasksTableFilterComposer(
+            $db: $db,
+            $table: $db.generationTasks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3431,6 +3821,31 @@ class $$WordsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> generationTasksRefs<T extends Object>(
+    Expression<T> Function($$GenerationTasksTableAnnotationComposer a) f,
+  ) {
+    final $$GenerationTasksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.generationTasks,
+      getReferencedColumn: (t) => t.wordId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GenerationTasksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.generationTasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WordsTableTableManager
@@ -3451,6 +3866,7 @@ class $$WordsTableTableManager
             bool wordMaterialsRefs,
             bool audioCachesRefs,
             bool reviewStatesTableRefs,
+            bool generationTasksRefs,
           })
         > {
   $$WordsTableTableManager(_$AppDatabase db, $WordsTable table)
@@ -3512,6 +3928,7 @@ class $$WordsTableTableManager
                 wordMaterialsRefs = false,
                 audioCachesRefs = false,
                 reviewStatesTableRefs = false,
+                generationTasksRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -3519,6 +3936,7 @@ class $$WordsTableTableManager
                     if (wordMaterialsRefs) db.wordMaterials,
                     if (audioCachesRefs) db.audioCaches,
                     if (reviewStatesTableRefs) db.reviewStatesTable,
+                    if (generationTasksRefs) db.generationTasks,
                   ],
                   addJoins:
                       <
@@ -3617,6 +4035,27 @@ class $$WordsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (generationTasksRefs)
+                        await $_getPrefetchedData<
+                          Word,
+                          $WordsTable,
+                          GenerationTask
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WordsTableReferences
+                              ._generationTasksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WordsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).generationTasksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.wordId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3642,6 +4081,7 @@ typedef $$WordsTableProcessedTableManager =
         bool wordMaterialsRefs,
         bool audioCachesRefs,
         bool reviewStatesTableRefs,
+        bool generationTasksRefs,
       })
     >;
 typedef $$WordMaterialsTableCreateCompanionBuilder =
@@ -5155,6 +5595,326 @@ typedef $$BudgetDaysTableProcessedTableManager =
       BudgetDay,
       PrefetchHooks Function()
     >;
+typedef $$GenerationTasksTableCreateCompanionBuilder =
+    GenerationTasksCompanion Function({
+      Value<int> id,
+      required int wordId,
+      required int priority,
+      Value<String> state,
+      Value<DateTime> queuedAt,
+    });
+typedef $$GenerationTasksTableUpdateCompanionBuilder =
+    GenerationTasksCompanion Function({
+      Value<int> id,
+      Value<int> wordId,
+      Value<int> priority,
+      Value<String> state,
+      Value<DateTime> queuedAt,
+    });
+
+final class $$GenerationTasksTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $GenerationTasksTable, GenerationTask> {
+  $$GenerationTasksTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WordsTable _wordIdTable(_$AppDatabase db) =>
+      db.words.createAlias('generation_tasks__word_id__words__id');
+
+  $$WordsTableProcessedTableManager get wordId {
+    final $_column = $_itemColumn<int>('word_id')!;
+
+    final manager = $$WordsTableTableManager(
+      $_db,
+      $_db.words,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_wordIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$GenerationTasksTableFilterComposer
+    extends Composer<_$AppDatabase, $GenerationTasksTable> {
+  $$GenerationTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WordsTableFilterComposer get wordId {
+    final $$WordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.wordId,
+      referencedTable: $db.words,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordsTableFilterComposer(
+            $db: $db,
+            $table: $db.words,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GenerationTasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $GenerationTasksTable> {
+  $$GenerationTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get queuedAt => $composableBuilder(
+    column: $table.queuedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WordsTableOrderingComposer get wordId {
+    final $$WordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.wordId,
+      referencedTable: $db.words,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.words,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GenerationTasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GenerationTasksTable> {
+  $$GenerationTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get queuedAt =>
+      $composableBuilder(column: $table.queuedAt, builder: (column) => column);
+
+  $$WordsTableAnnotationComposer get wordId {
+    final $$WordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.wordId,
+      referencedTable: $db.words,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.words,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GenerationTasksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GenerationTasksTable,
+          GenerationTask,
+          $$GenerationTasksTableFilterComposer,
+          $$GenerationTasksTableOrderingComposer,
+          $$GenerationTasksTableAnnotationComposer,
+          $$GenerationTasksTableCreateCompanionBuilder,
+          $$GenerationTasksTableUpdateCompanionBuilder,
+          (GenerationTask, $$GenerationTasksTableReferences),
+          GenerationTask,
+          PrefetchHooks Function({bool wordId})
+        > {
+  $$GenerationTasksTableTableManager(
+    _$AppDatabase db,
+    $GenerationTasksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GenerationTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GenerationTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GenerationTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> wordId = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> queuedAt = const Value.absent(),
+              }) => GenerationTasksCompanion(
+                id: id,
+                wordId: wordId,
+                priority: priority,
+                state: state,
+                queuedAt: queuedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int wordId,
+                required int priority,
+                Value<String> state = const Value.absent(),
+                Value<DateTime> queuedAt = const Value.absent(),
+              }) => GenerationTasksCompanion.insert(
+                id: id,
+                wordId: wordId,
+                priority: priority,
+                state: state,
+                queuedAt: queuedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$GenerationTasksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({wordId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (wordId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.wordId,
+                                referencedTable:
+                                    $$GenerationTasksTableReferences
+                                        ._wordIdTable(db),
+                                referencedColumn:
+                                    $$GenerationTasksTableReferences
+                                        ._wordIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$GenerationTasksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GenerationTasksTable,
+      GenerationTask,
+      $$GenerationTasksTableFilterComposer,
+      $$GenerationTasksTableOrderingComposer,
+      $$GenerationTasksTableAnnotationComposer,
+      $$GenerationTasksTableCreateCompanionBuilder,
+      $$GenerationTasksTableUpdateCompanionBuilder,
+      (GenerationTask, $$GenerationTasksTableReferences),
+      GenerationTask,
+      PrefetchHooks Function({bool wordId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5175,4 +5935,6 @@ class $AppDatabaseManager {
       $$SettingsTableTableTableManager(_db, _db.settingsTable);
   $$BudgetDaysTableTableManager get budgetDays =>
       $$BudgetDaysTableTableManager(_db, _db.budgetDays);
+  $$GenerationTasksTableTableManager get generationTasks =>
+      $$GenerationTasksTableTableManager(_db, _db.generationTasks);
 }

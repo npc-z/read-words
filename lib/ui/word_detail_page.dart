@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,17 +6,21 @@ import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/data/settings.dart';
 import 'package:read_words/generation/content.dart';
+import 'package:read_words/generation/generation_queue.dart';
 
-/// 单词详情页(§8:3 个预设视图模式,右上角切换 + 展示配置)
+/// 单词详情页(§8:3 个预设视图模式,右上角切换 + 展示配置)。
+/// 点开未生成词 → 即时生成(§6.1 最高优先,不受预算限制)。
 class WordDetailPage extends StatefulWidget {
   const WordDetailPage({
     super.key,
     required this.word,
     required this.repositories,
+    required this.queue,
   });
 
   final Word word;
   final Repositories repositories;
+  final GenerationQueue queue;
 
   @override
   State<WordDetailPage> createState() => _WordDetailPageState();
@@ -31,10 +36,27 @@ class _WordDetailPageState extends State<WordDetailPage> {
   bool _loading = true;
   Object? _loadError;
 
+  /// 词的实时状态(生成过程中由队列驱动刷新)
+  String? _wordStatus;
+  bool _genRequested = false;
+
   @override
   void initState() {
     super.initState();
+    _wordStatus = widget.word.status;
+    widget.queue.addListener(_onQueueChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    widget.queue.removeListener(_onQueueChanged);
+    super.dispose();
+  }
+
+  void _onQueueChanged() {
+    if (!mounted) return;
+    unawaited(_refresh());
   }
 
   Future<void> _load() async {
@@ -55,6 +77,11 @@ class _WordDetailPageState extends State<WordDetailPage> {
           _loadError = null;
         });
       }
+      // 未生成素材:即时生成(§6.1);生成中/失败重试由 _refresh 处理
+      if (m == null && !_genRequested) {
+        _genRequested = true;
+        unawaited(widget.queue.enqueue(widget.word.id, immediate: true));
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -63,6 +90,23 @@ class _WordDetailPageState extends State<WordDetailPage> {
         });
       }
     }
+  }
+
+  Future<void> _refresh() async {
+    final m = await widget.repositories.materialFor(widget.word.id);
+    final w = await widget.repositories.wordById(widget.word.id);
+    if (mounted) {
+      setState(() {
+        _material = m;
+        _wordStatus = w?.status;
+      });
+    }
+  }
+
+  Future<void> _retry() async {
+    _genRequested = true;
+    setState(() {});
+    await widget.queue.enqueue(widget.word.id, immediate: true);
   }
 
   List<Sense> _senses() {
@@ -129,27 +173,89 @@ class _WordDetailPageState extends State<WordDetailPage> {
                     ],
                   ),
                 )
-              : _material == null
-              ? const Center(child: Text('该单词尚未生成素材'))
-              : switch (_mode) {
-                  ViewMode.study => _StudyView(
-                      word: widget.word.headword,
-                      uk: _material?.phoneticUk ?? '',
-                      us: _material?.phoneticUs ?? '',
-                      senses: _senses(),
-                      phrases: _phrases(),
-                      display: _display,
+              : _material != null
+                  ? switch (_mode) {
+                      ViewMode.study => _StudyView(
+                          word: widget.word.headword,
+                          uk: _material?.phoneticUk ?? '',
+                          us: _material?.phoneticUs ?? '',
+                          senses: _senses(),
+                          phrases: _phrases(),
+                          display: _display,
+                        ),
+                      ViewMode.lookup => _LookupView(
+                          word: widget.word.headword,
+                          uk: _material?.phoneticUk ?? '',
+                          us: _material?.phoneticUs ?? '',
+                          senses: _senses(),
+                          phrases: _phrases(),
+                          display: _display,
+                        ),
+                      ViewMode.review => _ReviewView(
+                          senses: _senses(),
+                          display: _display,
+                        ),
+                    }
+                  : _GenerationPlaceholder(
+                      status: _wordStatus,
+                      onRetry: _retry,
                     ),
-                  ViewMode.lookup => _LookupView(
-                      word: widget.word.headword,
-                      uk: _material?.phoneticUk ?? '',
-                      us: _material?.phoneticUs ?? '',
-                      senses: _senses(),
-                      phrases: _phrases(),
-                      display: _display,
-                    ),
-                  ViewMode.review => _ReviewView(senses: _senses(), display: _display),
-                },
+    );
+  }
+}
+
+/// 素材未生成时的占位:即时生成中 / 失败重试 / 手动生成(§6.1)
+class _GenerationPlaceholder extends StatelessWidget {
+  const _GenerationPlaceholder({required this.status, required this.onRetry});
+
+  final String? status;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == WordStatus.queued.name ||
+        status == WordStatus.generating.name) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(height: 16),
+            const Text('正在即时生成,请稍候…'),
+            const SizedBox(height: 4),
+            const Text('即时生成优先于后台批次,不受预算限制',
+                style: TextStyle(color: Colors.grey, fontSize: 12)),
+          ],
+        ),
+      );
+    }
+    if (status == WordStatus.failed.name) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 12),
+            const Text('生成失败', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('重试')),
+          ],
+        ),
+      );
+    }
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('该单词尚未生成素材'),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: onRetry, child: const Text('生成')),
+        ],
+      ),
     );
   }
 }

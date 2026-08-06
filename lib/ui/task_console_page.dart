@@ -1,12 +1,12 @@
-/// 生成任务控制台(§6 + 原型 #13 A+C 组合;并发池见 #17)。
+/// 生成任务控制台(§6 + 原型 #13 A+C 组合):全局队列(§6.1)的词集视图。
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
-import 'package:read_words/generation/budget.dart';
-import 'package:read_words/generation/generation_service.dart';
-import 'package:read_words/generation/task_controller.dart';
+import 'package:read_words/generation/generation_queue.dart';
 
 /// 生成任务控制台:顶部大进度卡(分段进度 + 统计 + 状态徽章)+ 词表驱动列表。
 class TaskConsolePage extends StatefulWidget {
@@ -14,69 +14,84 @@ class TaskConsolePage extends StatefulWidget {
     super.key,
     required this.wordSet,
     required this.repositories,
-    this.service,
-    this.budget,
+    required this.queue,
   });
 
   final WordSet wordSet;
   final Repositories repositories;
 
-  /// 注入用;为空时按设置构造默认服务
-  final GenerationService? service;
-
-  /// 预算账本(§6.2);为空时用默认时钟构造
-  final BudgetLedger? budget;
+  /// 全局生成队列(§6.1 单队列双优先级)
+  final GenerationQueue queue;
 
   @override
   State<TaskConsolePage> createState() => _TaskConsolePageState();
 }
 
 class _TaskConsolePageState extends State<TaskConsolePage> {
-  GenerationTaskController? _controller;
+  List<Word> _words = [];
+  bool _loading = true;
+  bool _cancelled = false;
 
   @override
   void initState() {
     super.initState();
+    widget.queue.addListener(_onQueueChanged);
     _init();
-  }
-
-  Future<void> _init() async {
-    final service =
-        widget.service ?? await buildGenerationService(widget.repositories);
-    if (!mounted) return;
-    final controller = GenerationTaskController(
-      wordSetId: widget.wordSet.id,
-      repositories: widget.repositories,
-      service: service,
-      budget: widget.budget,
-    );
-    controller.addListener(_onChanged);
-    setState(() => _controller = controller);
-    await controller.start();
-  }
-
-  void _onChanged() {
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _controller?.removeListener(_onChanged);
-    _controller?.dispose();
+    widget.queue.removeListener(_onQueueChanged);
     super.dispose();
   }
 
-  String _badge(GenerationTaskController c) {
-    if (c.cancelled) return '已取消';
-    if (c.paused) return '已暂停';
-    if (c.running) return '生成中';
-    if (c.budgetExhausted) return '已达今日预算';
+  Future<void> _init() async {
+    // 批次入队(未生成词);已在队列的跳过
+    unawaited(widget.queue.startBatch(widget.wordSet.id));
+    await _reload();
+  }
+
+  void _onQueueChanged() {
+    if (mounted) _reload();
+  }
+
+  Future<void> _reload() async {
+    final ws = await widget.repositories.wordsInSet(widget.wordSet.id);
+    if (mounted) {
+      setState(() {
+        _words = ws;
+        _loading = false;
+      });
+    }
+  }
+
+  int get _successCount =>
+      _words.where((w) => w.status == WordStatus.done.name).length;
+  int get _failureCount =>
+      _words.where((w) => w.status == WordStatus.failed.name).length;
+  int get _pendingCount => _words.where((w) =>
+      w.status == WordStatus.queued.name ||
+      w.status == WordStatus.generating.name).length;
+
+  String _badge() {
+    if (_cancelled) return '已取消';
+    if (_pendingCount == 0) return '已完成'; // 本词集无待处理词
+    if (widget.queue.paused) return '已暂停';
+    if (widget.queue.running) return '生成中';
+    if (widget.queue.budgetExhausted) return '已达今日预算';
     return '已完成';
   }
 
-  Future<void> _continueBatch(GenerationTaskController c) async {
-    await c.continueBatch();
-    if (c.budgetExhausted && mounted) {
+  Future<void> _cancel() async {
+    await widget.queue.cancelWordSet(widget.wordSet.id);
+    if (mounted) {
+      setState(() => _cancelled = true);
+    }
+  }
+
+  Future<void> _continueBackground() async {
+    await widget.queue.continueBackground();
+    if (widget.queue.budgetExhausted && mounted) {
       // 同日仍达限:给用户反馈而非静默无操作
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已达今日预算,次日重置后可继续')),
@@ -86,42 +101,46 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
+    final queue = widget.queue;
     return Scaffold(
       appBar: AppBar(
         title: const Text('生成任务'),
         actions: [
-          if (controller != null &&
-              (controller.running ||
-                  controller.paused ||
-                  controller.budgetExhausted)) ...[
-            if (controller.paused)
+          if (!_loading &&
+              _pendingCount > 0) ...[
+            if (queue.paused)
               TextButton(
-                onPressed: controller.resume,
+                onPressed: queue.resume,
                 child: const Text('继续'),
               ),
-            if (controller.running && !controller.paused)
+            if (queue.running && !queue.paused)
               TextButton(
-                onPressed: controller.pause,
+                onPressed: queue.pause,
                 child: const Text('暂停'),
               ),
-            TextButton(
-              onPressed: controller.cancel,
-              child: const Text('取消'),
-            ),
+            TextButton(onPressed: _cancel, child: const Text('取消')),
           ],
         ],
       ),
-      body: controller == null
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 _ProgressCard(
-                  controller: controller,
-                  badge: _badge(controller),
-                  onContinue: () => _continueBatch(controller),
+                  queue: queue,
+                  words: _words,
+                  badge: _badge(),
+                  successCount: _successCount,
+                  failureCount: _failureCount,
+                  pendingCount: _pendingCount,
+                  onContinue: _continueBackground,
                 ),
-                Expanded(child: _TaskList(controller: controller)),
+                Expanded(
+                  child: _TaskList(
+                    words: _words,
+                    queue: queue,
+                  ),
+                ),
               ],
             ),
     );
@@ -130,13 +149,21 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
 
 class _ProgressCard extends StatelessWidget {
   const _ProgressCard({
-    required this.controller,
+    required this.queue,
+    required this.words,
     required this.badge,
+    required this.successCount,
+    required this.failureCount,
+    required this.pendingCount,
     required this.onContinue,
   });
 
-  final GenerationTaskController controller;
+  final GenerationQueue queue;
+  final List<Word> words;
   final String badge;
+  final int successCount;
+  final int failureCount;
+  final int pendingCount;
   final VoidCallback onContinue;
 
   @override
@@ -156,16 +183,15 @@ class _ProgressCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '成功 ${controller.successCount} · 失败 ${controller.failureCount}'
-                  ' · 剩余 ${controller.pendingCount}',
+                  '成功 $successCount · 失败 $failureCount · 剩余 $pendingCount',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _BudgetStrip(controller: controller, onContinue: onContinue),
+            _BudgetStrip(queue: queue, onContinue: onContinue),
             const SizedBox(height: 12),
-            _SegmentedBar(controller: controller),
+            _SegmentedBar(words: words),
           ],
         ),
       ),
@@ -175,16 +201,16 @@ class _ProgressCard extends StatelessWidget {
 
 /// 预算提示条(§6.2):今日预算 used/limit;达限显示"继续下一批次"。
 class _BudgetStrip extends StatelessWidget {
-  const _BudgetStrip({required this.controller, required this.onContinue});
+  const _BudgetStrip({required this.queue, required this.onContinue});
 
-  final GenerationTaskController controller;
+  final GenerationQueue queue;
 
   /// 点击"继续下一批次";同日仍达限时由页面给出提示
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
-    final state = controller.budgetState;
+    final state = queue.budgetState;
     if (state == null) return const SizedBox.shrink();
     final ratio = (state.used / state.limit).clamp(0.0, 1.0);
     return Column(
@@ -199,7 +225,7 @@ class _BudgetStrip extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(value: ratio, minHeight: 6),
         ),
-        if (controller.budgetExhausted) ...[
+        if (queue.budgetExhausted) ...[
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: onContinue,
@@ -212,14 +238,13 @@ class _BudgetStrip extends StatelessWidget {
 }
 
 class _SegmentedBar extends StatelessWidget {
-  const _SegmentedBar({required this.controller});
+  const _SegmentedBar({required this.words});
 
-  final GenerationTaskController controller;
+  final List<Word> words;
 
   @override
   Widget build(BuildContext context) {
-    final tasks = controller.tasks;
-    if (tasks.isEmpty) {
+    if (words.isEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: const SizedBox(
@@ -234,9 +259,9 @@ class _SegmentedBar extends StatelessWidget {
         height: 10,
         child: Row(
           children: [
-            for (final t in tasks)
+            for (final w in words)
               Expanded(
-                child: ColoredBox(color: statusColor(t.status)),
+                child: ColoredBox(color: statusColor(w.status)),
               ),
           ],
         ),
@@ -245,47 +270,56 @@ class _SegmentedBar extends StatelessWidget {
   }
 }
 
-Color statusColor(WordStatus status) => switch (status) {
-      WordStatus.done => const Color(0xFF34C759),
-      WordStatus.failed => const Color(0xFFFF3B30),
-      WordStatus.generating => const Color(0xFF2563EB),
-      WordStatus.queued => const Color(0xFFFFCC00),
-      WordStatus.notGenerated => const Color(0xFFE0E0E0),
+Color statusColor(String status) => switch (status) {
+      'done' => const Color(0xFF34C759),
+      'failed' => const Color(0xFFFF3B30),
+      'generating' => const Color(0xFF2563EB),
+      'queued' => const Color(0xFFFFCC00),
+      _ => const Color(0xFFE0E0E0),
     };
 
-class _TaskList extends StatelessWidget {
-  const _TaskList({required this.controller});
+WordStatus statusOf(String status) => WordStatus.values.firstWhere(
+      (s) => s.name == status,
+      orElse: () => WordStatus.notGenerated,
+    );
 
-  final GenerationTaskController controller;
+class _TaskList extends StatelessWidget {
+  const _TaskList({required this.words, required this.queue});
+
+  final List<Word> words;
+  final GenerationQueue queue;
 
   @override
   Widget build(BuildContext context) {
-    final tasks = controller.tasks;
-    if (tasks.isEmpty) {
+    if (words.isEmpty) {
       return const Center(child: Text('没有待生成的词'));
     }
     return ListView.builder(
-      itemCount: tasks.length,
+      itemCount: words.length,
       itemBuilder: (context, i) {
-        final t = tasks[i];
+        final w = words[i];
+        final status = statusOf(w.status);
         return ListTile(
-          leading: _StatusIcon(status: t.status),
-          title: Text(t.headword),
-          subtitle: t.status == WordStatus.failed
-              ? Text(t.error ?? '生成失败', style: const TextStyle(color: Colors.red))
-              : Text(t.status.label, style: const TextStyle(fontSize: 12)),
-          trailing: t.status == WordStatus.failed
+          leading: _StatusIcon(status: status),
+          title: Text(w.headword),
+          subtitle: status == WordStatus.failed
+              ? Text(
+                  queue.errors[w.id] ?? '生成失败',
+                  style: const TextStyle(color: Colors.red),
+                )
+              : Text(status.label, style: const TextStyle(fontSize: 12)),
+          trailing: status == WordStatus.failed
               ? IconButton(
                   tooltip: '重试',
                   icon: const Icon(Icons.refresh),
                   onPressed: () {
-                    if (controller.budgetExhausted) {
+                    if (queue.budgetExhausted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('已达今日预算,次日重置后可重试')),
                       );
                       return;
                     }
-                    controller.retry(t.wordId);
+                    queue.retry(w.id);
                   },
                 )
               : null,
@@ -304,14 +338,14 @@ class _StatusIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (status) {
       WordStatus.done =>
-        Icon(Icons.check_circle, color: statusColor(status)),
-      WordStatus.failed => Icon(Icons.error, color: statusColor(status)),
+        Icon(Icons.check_circle, color: statusColor(status.name)),
+      WordStatus.failed => Icon(Icons.error, color: statusColor(status.name)),
       WordStatus.generating =>
         const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
       WordStatus.queued =>
-        Icon(Icons.schedule, color: statusColor(status)),
+        Icon(Icons.schedule, color: statusColor(status.name)),
       WordStatus.notGenerated =>
-        Icon(Icons.circle_outlined, color: statusColor(status)),
+        Icon(Icons.circle_outlined, color: statusColor(status.name)),
     };
   }
 }

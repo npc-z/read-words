@@ -7,7 +7,11 @@ import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/data/settings.dart';
 import 'package:read_words/generation/content.dart';
+import 'package:read_words/generation/generation_queue.dart';
+import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/ui/word_detail_page.dart';
+
+import '../generation/fake_client.dart';
 
 WordMaterial sampleMaterial() {
   final senses = [
@@ -40,6 +44,10 @@ WordMaterial sampleMaterial() {
 
 Future<Word> seedWord(AppDatabase db) async {
   final repo = Repositories(db);
+  return seedWordWithRepo(repo);
+}
+
+Future<Word> seedWordWithRepo(Repositories repo) async {
   final setId = await repo.createWordSet('test');
   await repo.addWords(setId, ['run']);
   final word = (await repo.wordsInSet(setId)).first;
@@ -64,6 +72,14 @@ Future<Word> seedWord(AppDatabase db) async {
   return word;
 }
 
+GenerationQueue makeQueue(Repositories repo) => GenerationQueue(
+      repositories: repo,
+      service: GenerationService(
+        client: FakeClient(),
+        repositories: repo,
+      ),
+    );
+
 void main() {
   testWidgets('word detail renders study mode with level groups', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());
@@ -71,7 +87,7 @@ void main() {
     final word = await seedWord(db);
 
     await tester.pumpWidget(MaterialApp(
-      home: WordDetailPage(word: word, repositories: repo),
+      home: WordDetailPage(word: word, repositories: repo, queue: makeQueue(repo)),
     ));
     await tester.pumpAndSettle();
 
@@ -87,7 +103,7 @@ void main() {
     final word = await seedWord(db);
 
     await tester.pumpWidget(MaterialApp(
-      home: WordDetailPage(word: word, repositories: repo),
+      home: WordDetailPage(word: word, repositories: repo, queue: makeQueue(repo)),
     ));
     await tester.pumpAndSettle();
 
@@ -116,7 +132,7 @@ void main() {
     ));
 
     await tester.pumpWidget(MaterialApp(
-      home: WordDetailPage(word: word, repositories: repo),
+      home: WordDetailPage(word: word, repositories: repo, queue: makeQueue(repo)),
     ));
     await tester.pumpAndSettle();
 
@@ -124,6 +140,31 @@ void main() {
     expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     expect(find.text('我每天早上跑步。'), findsNothing);
     expect(find.text('I run every morning.'), findsOneWidget);
+    await db.close();
+  });
+
+  testWidgets('opening a notGenerated word triggers immediate generation (§6.1)', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final repo = Repositories(db);
+    final setId = await repo.createWordSet('test');
+    await repo.addWords(setId, ['run']);
+    final word = (await repo.wordsInSet(setId)).first;
+    final client = FakeClient();
+    final queue = GenerationQueue(
+      repositories: repo,
+      service: GenerationService(client: client, repositories: repo),
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: WordDetailPage(word: word, repositories: repo, queue: queue),
+    ));
+    await tester.pumpAndSettle();
+
+    // 自动即时生成:素材出现,单词完成
+    expect(find.text('run'), findsWidgets);
+    expect(find.textContaining('简单句'), findsWidgets);
+    expect(client.callCount, 1);
+    expect((await repo.wordsInSet(setId)).single.status, WordStatus.done.name);
     await db.close();
   });
 }
