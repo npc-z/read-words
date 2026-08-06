@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/data/settings.dart';
 import 'package:read_words/generation/content.dart';
 
 /// 单词详情页(§8:3 个预设视图模式,右上角切换 + 展示配置)
@@ -20,16 +21,15 @@ class WordDetailPage extends StatefulWidget {
   State<WordDetailPage> createState() => _WordDetailPageState();
 }
 
-enum ViewMode { study, lookup, review }
-
 class _WordDetailPageState extends State<WordDetailPage> {
   ViewMode _mode = ViewMode.study;
 
-  /// 展示配置:both / en / zh(§8.2)
-  String _display = 'both';
+  /// 展示配置(§8.2)
+  DisplayMode _display = DisplayMode.both;
 
   WordMaterial? _material;
   bool _loading = true;
+  Object? _loadError;
 
   @override
   void initState() {
@@ -39,12 +39,29 @@ class _WordDetailPageState extends State<WordDetailPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final m = await widget.repositories.materialFor(widget.word.id);
-    if (mounted) {
-      setState(() {
-        _material = m;
-        _loading = false;
-      });
+    try {
+      final results = await Future.wait([
+        widget.repositories.materialFor(widget.word.id),
+        widget.repositories.settings(),
+      ]);
+      final m = results[0] as WordMaterial?;
+      final settings = results[1] as AppSettings;
+      if (mounted) {
+        setState(() {
+          _material = m;
+          _mode = settings.defaultViewMode;
+          _display = settings.displayMode;
+          _loading = false;
+          _loadError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadError = e;
+        });
+      }
     }
   }
 
@@ -75,14 +92,13 @@ class _WordDetailPageState extends State<WordDetailPage> {
         title: Text(widget.word.headword),
         actions: [
           // 展示配置(§8.2)
-          PopupMenuButton<String>(
+          PopupMenuButton<DisplayMode>(
             initialValue: _display,
             tooltip: '展示配置',
             onSelected: (v) => setState(() => _display = v),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'both', child: Text('中英双语')),
-              PopupMenuItem(value: 'en', child: Text('仅英文')),
-              PopupMenuItem(value: 'zh', child: Text('仅中文')),
+            itemBuilder: (_) => [
+              for (final mode in DisplayMode.values)
+                PopupMenuItem(value: mode, child: Text(mode.label)),
             ],
           ),
           // 视图模式切换(§8.1)
@@ -100,7 +116,20 @@ class _WordDetailPageState extends State<WordDetailPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _material == null
+          : _loadError != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
+                      const Text('加载失败', style: TextStyle(fontSize: 18)),
+                      const SizedBox(height: 16),
+                      FilledButton(onPressed: _load, child: const Text('重试')),
+                    ],
+                  ),
+                )
+              : _material == null
               ? const Center(child: Text('该单词尚未生成素材'))
               : switch (_mode) {
                   ViewMode.study => _StudyView(
@@ -201,7 +230,7 @@ class _ExampleRow extends StatelessWidget {
   const _ExampleRow({required this.example, required this.display});
 
   final Example example;
-  final String display;
+  final DisplayMode display;
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +248,7 @@ class _ExampleRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: display == 'zh'
+                child: display == DisplayMode.zh
                     ? const SizedBox.shrink()
                     : Text(
                         example.en,
@@ -228,7 +257,7 @@ class _ExampleRow extends StatelessWidget {
               ),
             ],
           ),
-          if (display != 'en')
+          if (display != DisplayMode.en)
             Padding(
               padding: const EdgeInsets.only(left: 34, top: 2),
               child: Text(
@@ -258,7 +287,7 @@ class _StudyView extends StatelessWidget {
   final String us;
   final List<Sense> senses;
   final List<Phrase> phrases;
-  final String display;
+  final DisplayMode display;
 
   @override
   Widget build(BuildContext context) {
@@ -309,7 +338,7 @@ class _StudyView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p.en),
-                    if (display != 'en')
+                    if (display != DisplayMode.en)
                       Text(p.zh, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                   ],
                 ),
@@ -337,7 +366,7 @@ class _LookupView extends StatelessWidget {
   final String us;
   final List<Sense> senses;
   final List<Phrase> phrases;
-  final String display;
+  final DisplayMode display;
 
   @override
   Widget build(BuildContext context) {
@@ -389,7 +418,7 @@ class _ReviewView extends StatefulWidget {
   const _ReviewView({required this.senses, required this.display});
 
   final List<Sense> senses;
-  final String display;
+  final DisplayMode display;
 
   @override
   State<_ReviewView> createState() => _ReviewViewState();
@@ -437,11 +466,11 @@ class _ReviewViewState extends State<_ReviewView> {
                 children: [
                   _LevelBadge(current.level),
                   const SizedBox(height: 16),
-                  if (widget.display != 'zh')
+                  if (widget.display != DisplayMode.zh)
                     Text(current.en,
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 20, height: 1.6)),
-                  if (widget.display != 'en')
+                  if (widget.display != DisplayMode.en)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Text(current.zh,

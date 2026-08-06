@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/import/import_service.dart';
+import 'package:read_words/ui/settings_page.dart';
 import 'package:read_words/ui/word_list_page.dart';
 
 /// 词集列表页(§7.3:词集即中心,创建 → 导入单词表)
@@ -74,6 +75,16 @@ class _WordSetListPageState extends State<WordSetListPage> {
       appBar: AppBar(
         title: const Text('我的词集'),
         actions: [
+          IconButton(
+            tooltip: '设置',
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsPage(repositories: widget.repositories),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: '新建词集',
             icon: const Icon(Icons.add),

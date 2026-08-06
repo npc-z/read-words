@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:read_words/data/app_database.dart';
+import 'package:read_words/data/settings.dart';
 
 /// 素材数据(内容层)
 class MaterialData {
@@ -25,6 +26,12 @@ class MaterialData {
 /// 设置键(§12)
 class SettingsKeys {
   static const apiKey = 'apiKey';
+  static const level = 'level';
+  static const dailyReadingX = 'dailyReadingX';
+  static const budgetMultiple = 'budgetMultiple';
+  static const concurrency = 'concurrency';
+  static const defaultViewMode = 'defaultViewMode';
+  static const displayMode = 'displayMode';
   SettingsKeys._();
 }
 
@@ -155,5 +162,76 @@ class Repositories {
     await db.into(db.settingsTable).insertOnConflictUpdate(
           SettingsTableCompanion.insert(key: key, value: value),
         );
+  }
+
+  /// 读取全部设置,未持久化/非法值回退默认(§12)
+  Future<AppSettings> settings() async {
+    final rows = await db.select(db.settingsTable).get();
+    final raw = {for (final row in rows) row.key: row.value};
+    final defaults = const AppSettings();
+    return AppSettings(
+      level: _enumOr(
+        EnglishLevel.values,
+        raw[SettingsKeys.level],
+        defaults.level,
+      ),
+      dailyReadingX: _intOr(
+        raw[SettingsKeys.dailyReadingX],
+        defaults.dailyReadingX,
+      ),
+      budgetMultiple: _intOr(
+        raw[SettingsKeys.budgetMultiple],
+        defaults.budgetMultiple,
+      ),
+      concurrency: _intOr(
+        raw[SettingsKeys.concurrency],
+        defaults.concurrency,
+      ),
+      apiKey: raw[SettingsKeys.apiKey] ?? defaults.apiKey,
+      defaultViewMode: _enumOr(
+        ViewMode.values,
+        raw[SettingsKeys.defaultViewMode],
+        defaults.defaultViewMode,
+      ),
+      displayMode: _enumOr(
+        DisplayMode.values,
+        raw[SettingsKeys.displayMode],
+        defaults.displayMode,
+      ),
+    );
+  }
+
+  /// 整批持久化全部设置
+  Future<void> saveSettings(AppSettings s) async {
+    final rows = {
+      SettingsKeys.level: s.level.name,
+      SettingsKeys.dailyReadingX: s.dailyReadingX.toString(),
+      SettingsKeys.budgetMultiple: s.budgetMultiple.toString(),
+      SettingsKeys.concurrency: s.concurrency.toString(),
+      SettingsKeys.apiKey: s.apiKey,
+      SettingsKeys.defaultViewMode: s.defaultViewMode.name,
+      SettingsKeys.displayMode: s.displayMode.name,
+    };
+    await db.transaction(() async {
+      for (final entry in rows.entries) {
+        await db.into(db.settingsTable).insertOnConflictUpdate(
+              SettingsTableCompanion.insert(
+                key: entry.key,
+                value: entry.value,
+              ),
+            );
+      }
+    });
+  }
+
+  static T _enumOr<T extends Enum>(List<T> values, String? name, T fallback) {
+    for (final v in values) {
+      if (v.name == name) return v;
+    }
+    return fallback;
+  }
+
+  static int _intOr(String? raw, int fallback) {
+    return int.tryParse(raw ?? '') ?? fallback;
   }
 }

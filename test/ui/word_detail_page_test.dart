@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/data/settings.dart';
 import 'package:read_words/generation/content.dart';
 import 'package:read_words/ui/word_detail_page.dart';
 
@@ -102,6 +103,27 @@ void main() {
     // 英文例句消失,中文例句仍在
     expect(find.text('I run every morning.'), findsNothing);
     expect(find.text('我每天早上跑步。'), findsOneWidget);
+    await db.close();
+  });
+
+  testWidgets('opens in default view mode and display config from settings', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final repo = Repositories(db);
+    final word = await seedWord(db);
+    await repo.saveSettings(const AppSettings(
+      defaultViewMode: ViewMode.review,
+      displayMode: DisplayMode.en,
+    ));
+
+    await tester.pumpWidget(MaterialApp(
+      home: WordDetailPage(word: word, repositories: repo),
+    ));
+    await tester.pumpAndSettle();
+
+    // 复习模式:逐句大字号居中;仅英文:无中文例句
+    expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+    expect(find.text('我每天早上跑步。'), findsNothing);
+    expect(find.text('I run every morning.'), findsOneWidget);
     await db.close();
   });
 }
