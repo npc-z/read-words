@@ -6,7 +6,7 @@ import 'package:read_words/data/db.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/generation/generation_queue.dart';
 import 'package:read_words/generation/generation_service.dart';
-import 'package:read_words/ui/word_set_list_page.dart';
+import 'package:read_words/ui/first_launch_gate.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// workmanager 后台任务:续跑未完成生成批次(§6.1;Web 端不走此路径)。
@@ -73,7 +73,7 @@ class ReadWordsApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         useMaterial3: true,
       ),
-      home: WordSetListPage(repositories: repositories, queue: queue),
+      home: FirstLaunchGate(repositories: repositories, queue: queue),
     );
   }
 }

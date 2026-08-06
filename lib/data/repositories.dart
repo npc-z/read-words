@@ -149,6 +149,14 @@ class Repositories {
         );
   }
 
+  /// 英语水平是否已选择(§12 首次启动必选):仅当存有合法水平值才算已选。
+  /// 未选择或值非法都不产生默认回退,下次启动仍要求进入引导
+  Future<bool> hasLevel() async {
+    final raw = await getSetting(SettingsKeys.level);
+    if (raw == null) return false;
+    return EnglishLevel.values.any((level) => level.name == raw);
+  }
+
   /// 读取设置(§12);不存在返回 null
   Future<String?> getSetting(String key) async {
     final row = await (db.select(db.settingsTable)
