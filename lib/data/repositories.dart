@@ -23,6 +23,19 @@ class MaterialData {
   final String source;
 }
 
+/// 到期复习词(§8.4):词 + 下次复习时间
+class DueReviewWord {
+  const DueReviewWord({
+    required this.wordId,
+    required this.headword,
+    required this.nextReviewAt,
+  });
+
+  final int wordId;
+  final String headword;
+  final DateTime nextReviewAt;
+}
+
 /// 设置键(§12)
 class SettingsKeys {
   static const apiKey = 'apiKey';
@@ -116,7 +129,8 @@ class Repositories {
         .getSingleOrNull();
   }
 
-  /// 标记认识/不认识;首次标记时把间隔置为 1(轻量复习,§8.4)
+  /// 标记认识/不认识(§8.4)。首次标记进入轻量复习:间隔置 1,
+  /// 次日可复习(nextReviewAt = +1 天);重复标记只更新标记,不重置排期
   Future<void> markKnown(int wordId, {required bool known}) async {
     final now = DateTime.now();
     final existing = await reviewStateFor(wordId);
@@ -125,17 +139,21 @@ class Repositories {
           ReviewStatesTableCompanion.insert(
             wordId: Value(wordId),
             known: Value(known),
-            interval: Value(existing?.interval ?? (known ? 0 : 1)),
+            interval: Value(existing?.interval ?? 1),
+            nextReviewAt: Value(
+              existing?.nextReviewAt ?? now.add(const Duration(days: 1)),
+            ),
             updatedAt: Value(now),
             deviceSeq: Value(seq),
           ),
         );
   }
 
-  /// 复习推进:间隔 1→3→7,并计算下次复习时间
-  Future<void> advanceReview(int wordId) async {
+  /// 复习推进:间隔 1→3→7,并计算下次复习时间;返回推进后的间隔。
+  /// (interval 0 为旧版「认识首标」遗留值,仍按 0→1 处理)
+  Future<int> advanceReview(int wordId) async {
     final existing = await reviewStateFor(wordId);
-    if (existing == null) return;
+    if (existing == null) return 0;
     final next = switch (existing.interval) {
       0 => 1,
       1 => 3,
@@ -147,6 +165,36 @@ class Repositories {
             nextReviewAt: Value(DateTime.now().add(Duration(days: next))),
           ),
         );
+    return next;
+  }
+
+  /// 词集内到期(含逾期)的复习词(§8.4):nextReviewAt 非空且 ≤ 当前时间,
+  /// 按到期时间升序;未标记或未到期词不进入
+  Future<List<DueReviewWord>> dueReviewWords(int wordSetId) async {
+    final now = DateTime.now();
+    final query = db.select(db.reviewStatesTable).join([
+      innerJoin(db.words, db.words.id.equalsExp(db.reviewStatesTable.wordId)),
+    ])
+      ..where(
+        db.words.wordSetId.equals(wordSetId) &
+            db.reviewStatesTable.nextReviewAt.isNotNull() &
+            db.reviewStatesTable.nextReviewAt.isSmallerOrEqualValue(now),
+      );
+    final rows = await query.get();
+    final due = <DueReviewWord>[
+      for (final row in rows)
+        DueReviewWord(
+          wordId: row.readTable(db.words).id,
+          headword: row.readTable(db.words).headword,
+          nextReviewAt: row.readTable(db.reviewStatesTable).nextReviewAt!,
+        ),
+    ]..sort((a, b) => a.nextReviewAt.compareTo(b.nextReviewAt));
+    return due;
+  }
+
+  /// 词集内到期复习词数(词列表徽章,§8.4)
+  Future<int> dueReviewCount(int wordSetId) async {
+    return (await dueReviewWords(wordSetId)).length;
   }
 
   /// 英语水平是否已选择(§12 首次启动必选):仅当存有合法水平值才算已选。

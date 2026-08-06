@@ -16,11 +16,15 @@ class WordDetailPage extends StatefulWidget {
     required this.word,
     required this.repositories,
     required this.queue,
+    this.initialMode,
   });
 
   final Word word;
   final Repositories repositories;
   final GenerationQueue queue;
+
+  /// 入口指定的初始视图模式(如复习入口);null 时用设置默认值
+  final ViewMode? initialMode;
 
   @override
   State<WordDetailPage> createState() => _WordDetailPageState();
@@ -71,7 +75,7 @@ class _WordDetailPageState extends State<WordDetailPage> {
       if (mounted) {
         setState(() {
           _material = m;
-          _mode = settings.defaultViewMode;
+          _mode = widget.initialMode ?? settings.defaultViewMode;
           _display = settings.displayMode;
           _loading = false;
           _loadError = null;
@@ -107,6 +111,15 @@ class _WordDetailPageState extends State<WordDetailPage> {
     _genRequested = true;
     setState(() {});
     await widget.queue.enqueue(widget.word.id, immediate: true);
+  }
+
+  /// 复习标记(§8.3):认识/不认识,首次标记进入轻量复习(次日可复习)
+  Future<void> _mark(bool known) async {
+    await widget.repositories.markKnown(widget.word.id, known: known);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(known ? '已标记认识' : '已标记不认识')),
+    );
   }
 
   List<Sense> _senses() {
@@ -161,45 +174,69 @@ class _WordDetailPageState extends State<WordDetailPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 12),
-                      const Text('加载失败', style: TextStyle(fontSize: 18)),
-                      const SizedBox(height: 16),
-                      FilledButton(onPressed: _load, child: const Text('重试')),
-                    ],
-                  ),
-                )
-              : _material != null
-                  ? switch (_mode) {
-                      ViewMode.study => _StudyView(
-                          word: widget.word.headword,
-                          uk: _material?.phoneticUk ?? '',
-                          us: _material?.phoneticUs ?? '',
-                          senses: _senses(),
-                          phrases: _phrases(),
-                          display: _display,
-                        ),
-                      ViewMode.lookup => _LookupView(
-                          word: widget.word.headword,
-                          uk: _material?.phoneticUk ?? '',
-                          us: _material?.phoneticUs ?? '',
-                          senses: _senses(),
-                          phrases: _phrases(),
-                          display: _display,
-                        ),
-                      ViewMode.review => _ReviewView(
-                          senses: _senses(),
-                          display: _display,
-                        ),
-                    }
-                  : _GenerationPlaceholder(
-                      status: _wordStatus,
-                      onRetry: _retry,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  const Text('加载失败', style: TextStyle(fontSize: 18)),
+                  const SizedBox(height: 16),
+                  FilledButton(onPressed: _load, child: const Text('重试')),
+                ],
+              ),
+            )
+          : _material != null
+          ? switch (_mode) {
+              ViewMode.study => _StudyView(
+                word: widget.word.headword,
+                uk: _material?.phoneticUk ?? '',
+                us: _material?.phoneticUs ?? '',
+                senses: _senses(),
+                phrases: _phrases(),
+                display: _display,
+              ),
+              ViewMode.lookup => _LookupView(
+                word: widget.word.headword,
+                uk: _material?.phoneticUk ?? '',
+                us: _material?.phoneticUs ?? '',
+                senses: _senses(),
+                phrases: _phrases(),
+                display: _display,
+              ),
+              ViewMode.review => _ReviewView(
+                senses: _senses(),
+                display: _display,
+              ),
+            }
+          : _GenerationPlaceholder(status: _wordStatus, onRetry: _retry),
+      // 复习标记栏(§8.3):素材就绪时可用
+      bottomNavigationBar: _material != null
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.close),
+                        label: const Text('不认识'),
+                        onPressed: () => _mark(false),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.check),
+                        label: const Text('认识'),
+                        onPressed: () => _mark(true),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
     );
   }
 }
@@ -227,8 +264,10 @@ class _GenerationPlaceholder extends StatelessWidget {
             const SizedBox(height: 16),
             const Text('正在即时生成,请稍候…'),
             const SizedBox(height: 4),
-            const Text('即时生成优先于后台批次,不受预算限制',
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Text(
+              '即时生成优先于后台批次,不受预算限制',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       );
@@ -262,7 +301,11 @@ class _GenerationPlaceholder extends StatelessWidget {
 
 /// 音标行
 class _PhoneticHeader extends StatelessWidget {
-  const _PhoneticHeader({required this.word, required this.uk, required this.us});
+  const _PhoneticHeader({
+    required this.word,
+    required this.uk,
+    required this.us,
+  });
 
   final String word;
   final String uk;
@@ -279,7 +322,10 @@ class _PhoneticHeader extends StatelessWidget {
             children: [
               Text(
                 word,
-                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -326,7 +372,14 @@ class _LevelBadge extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text('L$level', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+      child: Text(
+        'L$level',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }
@@ -398,7 +451,11 @@ class _StudyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final all = [for (final s in senses) ...s.examples];
-    final byLevel = {1: all.where((e) => e.level == 1).toList(), 2: all.where((e) => e.level == 2).toList(), 3: all.where((e) => e.level == 3).toList()};
+    final byLevel = {
+      1: all.where((e) => e.level == 1).toList(),
+      2: all.where((e) => e.level == 2).toList(),
+      3: all.where((e) => e.level == 3).toList(),
+    };
     final names = const {1: '简单句 · 核心用法', 2: '从句与搭配', 3: '复合句与书面语'};
 
     return ListView(
@@ -412,9 +469,15 @@ class _StudyView extends StatelessWidget {
               children: [
                 _LevelBadge(lvl),
                 const SizedBox(width: 8),
-                Text(names[lvl]!, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  names[lvl]!,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
-                Text('${byLevel[lvl]!.length}/3', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(
+                  '${byLevel[lvl]!.length}/3',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -424,7 +487,8 @@ class _StudyView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 children: [
-                  for (final e in byLevel[lvl]!) _ExampleRow(example: e, display: display),
+                  for (final e in byLevel[lvl]!)
+                    _ExampleRow(example: e, display: display),
                 ],
               ),
             ),
@@ -433,19 +497,34 @@ class _StudyView extends StatelessWidget {
         if (phrases.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-            child: Text('常用短语', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            child: Text(
+              '常用短语',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           for (final p in phrases)
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: ListTile(
-                title: Text(p.phrase, style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(
+                  p.phrase,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p.en),
                     if (display != DisplayMode.en)
-                      Text(p.zh, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      Text(
+                        p.zh,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -483,7 +562,10 @@ class _LookupView extends StatelessWidget {
         for (final s in senses) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Text(s.pos, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            child: Text(
+              s.pos,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -494,7 +576,8 @@ class _LookupView extends StatelessWidget {
                 children: [
                   Text(s.meaning, style: const TextStyle(fontSize: 15)),
                   const Divider(height: 20),
-                  for (final e in s.examples) _ExampleRow(example: e, display: display),
+                  for (final e in s.examples)
+                    _ExampleRow(example: e, display: display),
                 ],
               ),
             ),
@@ -503,15 +586,18 @@ class _LookupView extends StatelessWidget {
         if (phrases.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-            child: Text('常用短语', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            child: Text(
+              '常用短语',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           for (final p in phrases)
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: ListTile(
-                title: Text(p.phrase),
-                subtitle: Text(p.en),
-              ),
+              child: ListTile(title: Text(p.phrase), subtitle: Text(p.en)),
             ),
         ],
       ],
@@ -554,11 +640,13 @@ class _ReviewViewState extends State<_ReviewView> {
                 height: 9,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: i == _index ? Colors.blue : switch (all[i].level) {
-                    1 => const Color(0xFF22C55E),
-                    2 => const Color(0xFFF59E0B),
-                    _ => const Color(0xFFEF4444),
-                  },
+                  color: i == _index
+                      ? Colors.blue
+                      : switch (all[i].level) {
+                          1 => const Color(0xFF22C55E),
+                          2 => const Color(0xFFF59E0B),
+                          _ => const Color(0xFFEF4444),
+                        },
                 ),
               ),
           ],
@@ -573,15 +661,23 @@ class _ReviewViewState extends State<_ReviewView> {
                   _LevelBadge(current.level),
                   const SizedBox(height: 16),
                   if (widget.display != DisplayMode.zh)
-                    Text(current.en,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 20, height: 1.6)),
+                    Text(
+                      current.en,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 20, height: 1.6),
+                    ),
                   if (widget.display != DisplayMode.en)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text(current.zh,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.grey, fontSize: 15, height: 1.6)),
+                      child: Text(
+                        current.zh,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 15,
+                          height: 1.6,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -594,12 +690,15 @@ class _ReviewViewState extends State<_ReviewView> {
             IconButton(
               iconSize: 40,
               icon: const Icon(Icons.chevron_left),
-              onPressed: () => setState(() => _index = (_index - 1 + all.length) % all.length),
+              onPressed: () => setState(
+                () => _index = (_index - 1 + all.length) % all.length,
+              ),
             ),
             IconButton(
               iconSize: 40,
               icon: const Icon(Icons.chevron_right),
-              onPressed: () => setState(() => _index = (_index + 1) % all.length),
+              onPressed: () =>
+                  setState(() => _index = (_index + 1) % all.length),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
 import 'package:read_words/generation/generation_queue.dart';
+import 'package:read_words/ui/review_queue_page.dart';
 import 'package:read_words/ui/task_console_page.dart';
 import 'package:read_words/ui/word_detail_page.dart';
 
@@ -24,17 +25,35 @@ class WordListPage extends StatefulWidget {
 
 class _WordListPageState extends State<WordListPage> {
   late Future<List<Word>> _future;
+  late Future<int> _dueCount;
 
   @override
   void initState() {
     super.initState();
     _future = widget.repositories.wordsInSet(widget.wordSet.id);
+    _dueCount = widget.repositories.dueReviewCount(widget.wordSet.id);
   }
 
   void _refresh() {
     setState(() {
       _future = widget.repositories.wordsInSet(widget.wordSet.id);
+      _dueCount = widget.repositories.dueReviewCount(widget.wordSet.id);
     });
+  }
+
+  Future<void> _openReview() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReviewQueuePage(
+          wordSet: widget.wordSet,
+          repositories: widget.repositories,
+          queue: widget.queue,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _refresh();
   }
 
   @override
@@ -43,6 +62,21 @@ class _WordListPageState extends State<WordListPage> {
       appBar: AppBar(
         title: Text(widget.wordSet.name),
         actions: [
+          FutureBuilder<int>(
+            future: _dueCount,
+            builder: (context, snapshot) {
+              final n = snapshot.data ?? 0;
+              return IconButton(
+                tooltip: '复习',
+                icon: Badge(
+                  isLabelVisible: n > 0,
+                  label: Text('$n'),
+                  child: const Icon(Icons.replay),
+                ),
+                onPressed: _openReview,
+              );
+            },
+          ),
           IconButton(
             tooltip: '开始生成',
             icon: const Icon(Icons.auto_awesome),
