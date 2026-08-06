@@ -70,7 +70,8 @@ class GenerationQueue extends ChangeNotifier {
   Future<void> enqueue(int wordId, {bool immediate = false}) async {
     final word = await repositories.wordById(wordId);
     if (word == null || word.status == WordStatus.done.name) return;
-    final wasPending = word.status == WordStatus.queued.name ||
+    final wasPending =
+        word.status == WordStatus.queued.name ||
         word.status == WordStatus.generating.name;
     await repositories.insertGenerationTask(
       wordId,

@@ -41,9 +41,9 @@ class _ReviewQueuePageState extends State<ReviewQueuePage> {
   Future<void> _complete(DueReviewWord word) async {
     final next = await widget.repositories.advanceReview(word.wordId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已复习,$next 天后再来')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已复习,$next 天后再来')));
     _refresh();
   }
 
@@ -69,7 +69,9 @@ class _ReviewQueuePageState extends State<ReviewQueuePage> {
     final now = DateTime.now();
     final local = at.toLocal();
     final today = DateTime(now.year, now.month, now.day);
-    final days = today.difference(DateTime(local.year, local.month, local.day)).inDays;
+    final days = today
+        .difference(DateTime(local.year, local.month, local.day))
+        .inDays;
     return days <= 0 ? '今天到期' : '已逾期 $days 天';
   }
 

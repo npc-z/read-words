@@ -69,10 +69,7 @@ void main() {
 
     final future = service.generateWord(wordId);
     await Future<void>.delayed(Duration.zero);
-    expect(
-      (await repo.wordById(wordId))!.status,
-      WordStatus.generating.name,
-    );
+    expect((await repo.wordById(wordId))!.status, WordStatus.generating.name);
 
     gate.complete();
     await future;
@@ -116,27 +113,30 @@ void main() {
     expect(client.callCount, 3);
   });
 
-  test('invalid content (not 9 sentences) marked failed without retry loop', () async {
-    client.contentOverride = {
-      'word': 'run',
-      'senses': [
-        {
-          'pos': 'v.',
-          'meaning': 'm',
-          'examples': [
-            {'level': 1, 'en': 'a1', 'zh': 'z1'},
-          ],
-        },
-      ],
-      'phrases': [],
-      'unclassified_examples': [],
-    };
-    final wordId = await addWord('run');
-    final o = await service.generateWord(wordId);
+  test(
+    'invalid content (not 9 sentences) marked failed without retry loop',
+    () async {
+      client.contentOverride = {
+        'word': 'run',
+        'senses': [
+          {
+            'pos': 'v.',
+            'meaning': 'm',
+            'examples': [
+              {'level': 1, 'en': 'a1', 'zh': 'z1'},
+            ],
+          },
+        ],
+        'phrases': [],
+        'unclassified_examples': [],
+      };
+      final wordId = await addWord('run');
+      final o = await service.generateWord(wordId);
 
-    expect(o.failed, isTrue);
-    expect(o.error, contains('L1'));
-  });
+      expect(o.failed, isTrue);
+      expect(o.error, contains('L1'));
+    },
+  );
 
   test('batch generation continues past failures', () async {
     final setId = await repo.createWordSet('test');
@@ -147,7 +147,9 @@ void main() {
       GenerationErrorKind.permanent,
       'permanent',
     );
-    final outcomes = await service.generateBatch(words.map((w) => w.id).toList());
+    final outcomes = await service.generateBatch(
+      words.map((w) => w.id).toList(),
+    );
     expect(outcomes, hasLength(3));
     expect(outcomes.every((o) => o.failed), isTrue);
   });

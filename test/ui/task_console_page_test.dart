@@ -45,56 +45,65 @@ void main() {
     wordSet = (await repo.wordSets()).first;
   }
 
-  testWidgets('console shows progress card, stats, failure reasons and retry works', (tester) async {
-    client.errorToThrow = const GenerationApiException(
-      GenerationErrorKind.permanent,
-      'API 错误 401',
-    );
-    await seed(['run', 'walk']);
+  testWidgets(
+    'console shows progress card, stats, failure reasons and retry works',
+    (tester) async {
+      client.errorToThrow = const GenerationApiException(
+        GenerationErrorKind.permanent,
+        'API 错误 401',
+      );
+      await seed(['run', 'walk']);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TaskConsolePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(),
-      ),
-    ));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TaskConsolePage(
+            wordSet: wordSet,
+            repositories: repo,
+            queue: await queue(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // 进度卡:统计 + 徽章
-    expect(find.textContaining('成功 0'), findsOneWidget);
-    expect(find.textContaining('失败 2'), findsOneWidget);
-    expect(find.widgetWithText(Chip, '已完成'), findsOneWidget);
-    // 词表:两个词 + 失败原因
-    expect(find.text('run'), findsOneWidget);
-    expect(find.text('walk'), findsOneWidget);
-    expect(find.textContaining('API 错误 401'), findsNWidgets(2));
-    expect(find.byTooltip('重试'), findsNWidgets(2));
+      // 进度卡:统计 + 徽章
+      expect(find.textContaining('成功 0'), findsOneWidget);
+      expect(find.textContaining('失败 2'), findsOneWidget);
+      expect(find.widgetWithText(Chip, '已完成'), findsOneWidget);
+      // 词表:两个词 + 失败原因
+      expect(find.text('run'), findsOneWidget);
+      expect(find.text('walk'), findsOneWidget);
+      expect(find.textContaining('API 错误 401'), findsNWidgets(2));
+      expect(find.byTooltip('重试'), findsNWidgets(2));
 
-    // 单点重试:第一个词重新生成成功
-    client.errorToThrow = null;
-    await tester.tap(find.byTooltip('重试').first);
-    await tester.pumpAndSettle();
+      // 单点重试:第一个词重新生成成功
+      client.errorToThrow = null;
+      await tester.tap(find.byTooltip('重试').first);
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('成功 1'), findsOneWidget);
-    expect(find.textContaining('失败 1'), findsOneWidget);
-    expect(find.byTooltip('重试'), findsOneWidget);
-  });
+      expect(find.textContaining('成功 1'), findsOneWidget);
+      expect(find.textContaining('失败 1'), findsOneWidget);
+      expect(find.byTooltip('重试'), findsOneWidget);
+    },
+  );
 
-  testWidgets('cancel resets queued words, in-flight words settle', (tester) async {
+  testWidgets('cancel resets queued words, in-flight words settle', (
+    tester,
+  ) async {
     await repo.saveSettings(const AppSettings(concurrency: 1));
     final gate = Completer<void>();
     client = FakeClient(gate: gate);
     service = GenerationService(client: client, repositories: repo);
     await seed(['run', 'walk']);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TaskConsolePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaskConsolePage(
+          wordSet: wordSet,
+          repositories: repo,
+          queue: await queue(),
+        ),
       ),
-    ));
+    );
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
@@ -112,16 +121,20 @@ void main() {
     expect(ws[1].status, WordStatus.notGenerated.name);
   });
 
-  testWidgets('word list page has entry that opens the console', (tester) async {
+  testWidgets('word list page has entry that opens the console', (
+    tester,
+  ) async {
     await seed([]);
 
-    await tester.pumpWidget(MaterialApp(
-      home: WordListPage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WordListPage(
+          wordSet: wordSet,
+          repositories: repo,
+          queue: await queue(),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('开始生成'), findsOneWidget);
@@ -132,20 +145,26 @@ void main() {
     expect(find.textContaining('成功 0'), findsOneWidget);
   });
 
-  testWidgets('budget exhaustion shows 已达今日预算 and continue resumes next day', (tester) async {
-    await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
+  testWidgets('budget exhaustion shows 已达今日预算 and continue resumes next day', (
+    tester,
+  ) async {
+    await repo.saveSettings(
+      const AppSettings(dailyReadingX: 1, budgetMultiple: 1),
+    );
     await seed(['run', 'walk']);
     var now = DateTime(2026, 8, 6, 10, 30);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TaskConsolePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(
-          budget: BudgetLedger(repositories: repo, now: () => now),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaskConsolePage(
+          wordSet: wordSet,
+          repositories: repo,
+          queue: await queue(
+            budget: BudgetLedger(repositories: repo, now: () => now),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     // 达限:徽章 + 预算条 + 继续按钮;run 完成,walk 保留排队
@@ -166,30 +185,39 @@ void main() {
     expect(find.widgetWithText(Chip, '已达今日预算'), findsNothing);
   });
 
-  testWidgets('continue on the same day shows a snackbar instead of silent no-op', (tester) async {
-    await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
-    await seed(['run', 'walk']);
-    var now = DateTime(2026, 8, 6, 10, 30);
+  testWidgets(
+    'continue on the same day shows a snackbar instead of silent no-op',
+    (tester) async {
+      await repo.saveSettings(
+        const AppSettings(dailyReadingX: 1, budgetMultiple: 1),
+      );
+      await seed(['run', 'walk']);
+      var now = DateTime(2026, 8, 6, 10, 30);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TaskConsolePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(
-          budget: BudgetLedger(repositories: repo, now: () => now),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TaskConsolePage(
+            wordSet: wordSet,
+            repositories: repo,
+            queue: await queue(
+              budget: BudgetLedger(repositories: repo, now: () => now),
+            ),
+          ),
         ),
-      ),
-    ));
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('继续下一批次'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('继续下一批次'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('已达今日预算,次日重置后可继续'), findsOneWidget);
-    expect(find.widgetWithText(Chip, '已达今日预算'), findsOneWidget); // 仍达限
-  });
+      expect(find.text('已达今日预算,次日重置后可继续'), findsOneWidget);
+      expect(find.widgetWithText(Chip, '已达今日预算'), findsOneWidget); // 仍达限
+    },
+  );
 
-  testWidgets('pause stops dispatch, resume continues, badge reflects state', (tester) async {
+  testWidgets('pause stops dispatch, resume continues, badge reflects state', (
+    tester,
+  ) async {
     await repo.saveSettings(const AppSettings(concurrency: 2));
     final g1 = Completer<void>();
     final g2 = Completer<void>();
@@ -198,13 +226,15 @@ void main() {
       ..add(g2);
     await seed(['run', 'walk', 'jump']);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TaskConsolePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: await queue(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaskConsolePage(
+          wordSet: wordSet,
+          repositories: repo,
+          queue: await queue(),
+        ),
       ),
-    ));
+    );
     // 在飞词有 spinner 动画,用定长 pump 而非 pumpAndSettle
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));
@@ -228,7 +258,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(Chip, '已完成'), findsOneWidget);
     expect(find.textContaining('成功 3'), findsOneWidget);
-    expect((await repo.wordsInSet(wordSet.id))
-        .every((w) => w.status == WordStatus.done.name), isTrue);
+    expect(
+      (await repo.wordsInSet(
+        wordSet.id,
+      )).every((w) => w.status == WordStatus.done.name),
+      isTrue,
+    );
   });
 }

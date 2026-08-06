@@ -71,9 +71,15 @@ class _FirstLaunchGateState extends State<FirstLaunchGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_hasLevel!) {
-      return WordSetListPage(repositories: widget.repositories, queue: widget.queue);
+      return WordSetListPage(
+        repositories: widget.repositories,
+        queue: widget.queue,
+      );
     }
-    return LevelOnboardingPage(repositories: widget.repositories, queue: widget.queue);
+    return LevelOnboardingPage(
+      repositories: widget.repositories,
+      queue: widget.queue,
+    );
   }
 
   @override

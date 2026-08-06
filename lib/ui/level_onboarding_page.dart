@@ -42,9 +42,9 @@ class _LevelOnboardingPageState extends State<LevelOnboardingPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('英语水平保存失败,请重试:${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('英语水平保存失败,请重试:${e.toString()}')));
     }
   }
 

@@ -28,44 +28,53 @@ void main() {
 
   Future<void> pumpApp(WidgetTester tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: FirstLaunchGate(repositories: repo, queue: queue)),
+      MaterialApp(
+        home: FirstLaunchGate(repositories: repo, queue: queue),
+      ),
     );
     await tester.pumpAndSettle();
   }
 
-  test('hasLevel is false when nothing stored, true after level saved', () async {
-    expect(await repo.hasLevel(), isFalse);
+  test(
+    'hasLevel is false when nothing stored, true after level saved',
+    () async {
+      expect(await repo.hasLevel(), isFalse);
 
-    await repo.saveSettings(const AppSettings(level: EnglishLevel.cet46));
-    expect(await repo.hasLevel(), isTrue);
-  });
+      await repo.saveSettings(const AppSettings(level: EnglishLevel.cet46));
+      expect(await repo.hasLevel(), isTrue);
+    },
+  );
 
   test('hasLevel is false when stored level value is invalid', () async {
     await repo.setSetting('level', 'doctorate');
     expect(await repo.hasLevel(), isFalse);
   });
 
-  testWidgets('first launch: mandatory onboarding, selection persists and enters main UI',
-      (tester) async {
-    await pumpApp(tester);
+  testWidgets(
+    'first launch: mandatory onboarding, selection persists and enters main UI',
+    (tester) async {
+      await pumpApp(tester);
 
-    expect(find.text('欢迎使用阅读学单词'), findsOneWidget);
-    expect(find.text('高考'), findsOneWidget);
-    expect(find.text('四六级'), findsOneWidget);
-    expect(find.text('专四专八'), findsOneWidget);
-    expect(find.text('我的词集'), findsNothing);
-    // 不可跳过:没有跳过按钮
-    expect(find.text('跳过'), findsNothing);
+      expect(find.text('欢迎使用阅读学单词'), findsOneWidget);
+      expect(find.text('高考'), findsOneWidget);
+      expect(find.text('四六级'), findsOneWidget);
+      expect(find.text('专四专八'), findsOneWidget);
+      expect(find.text('我的词集'), findsNothing);
+      // 不可跳过:没有跳过按钮
+      expect(find.text('跳过'), findsNothing);
 
-    await tester.tap(find.text('四六级'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('四六级'));
+      await tester.pumpAndSettle();
 
-    expect((await repo.settings()).level, EnglishLevel.cet46);
-    expect(find.text('我的词集'), findsOneWidget);
-    expect(find.text('欢迎使用阅读学单词'), findsNothing);
-  });
+      expect((await repo.settings()).level, EnglishLevel.cet46);
+      expect(find.text('我的词集'), findsOneWidget);
+      expect(find.text('欢迎使用阅读学单词'), findsNothing);
+    },
+  );
 
-  testWidgets('closing app without choosing re-shows onboarding next launch', (tester) async {
+  testWidgets('closing app without choosing re-shows onboarding next launch', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     // 不选择直接退出:不产生默认值
@@ -78,7 +87,9 @@ void main() {
     expect(find.text('我的词集'), findsNothing);
   });
 
-  testWidgets('corrupted stored level falls back to onboarding, no default', (tester) async {
+  testWidgets('corrupted stored level falls back to onboarding, no default', (
+    tester,
+  ) async {
     await repo.setSetting('level', 'doctorate');
     await pumpApp(tester);
 
@@ -86,7 +97,9 @@ void main() {
     expect((await repo.settings()).level, EnglishLevel.gaokao);
   });
 
-  testWidgets('non-first launch: main UI directly, no onboarding', (tester) async {
+  testWidgets('non-first launch: main UI directly, no onboarding', (
+    tester,
+  ) async {
     await repo.saveSettings(const AppSettings(level: EnglishLevel.gaokao));
     await pumpApp(tester);
 

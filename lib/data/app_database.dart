@@ -50,7 +50,8 @@ class WordMaterials extends Table {
   TextColumn get phrasesJson => text().withDefault(const Constant('[]'))();
 
   /// 未归类例句的 JSON(§4.2)
-  TextColumn get unclassifiedExamplesJson => text().withDefault(const Constant('[]'))();
+  TextColumn get unclassifiedExamplesJson =>
+      text().withDefault(const Constant('[]'))();
 
   /// 原始释义素材(rawHtml,供 AI 提取,调研票建议保留)
   TextColumn get rawHtml => text().withDefault(const Constant(''))();
@@ -126,21 +127,24 @@ class GenerationTasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get wordId => integer().references(Words, #id).unique()();
   IntColumn get priority => integer()(); // 0=后台预生成 1=即时生成
-  TextColumn get state => text().withDefault(const Constant('queued'))(); // queued/generating
+  TextColumn get state =>
+      text().withDefault(const Constant('queued'))(); // queued/generating
   DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
-@DriftDatabase(tables: [
-  WordSets,
-  Words,
-  WordMaterials,
-  AudioCaches,
-  ReviewStatesTable,
-  PendingQueues,
-  SettingsTable,
-  BudgetDays,
-  GenerationTasks,
-])
+@DriftDatabase(
+  tables: [
+    WordSets,
+    Words,
+    WordMaterials,
+    AudioCaches,
+    ReviewStatesTable,
+    PendingQueues,
+    SettingsTable,
+    BudgetDays,
+    GenerationTasks,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
@@ -149,20 +153,20 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            // v1 的 settings_table 无主键;settings 尚无任何数据,重建即可
-            await m.drop(settingsTable);
-            await m.create(settingsTable);
-          }
-          if (from < 3) {
-            // v2 无预算表,新建即可
-            await m.create(budgetDays);
-          }
-          if (from < 4) {
-            // v3 无生成任务表,新建即可
-            await m.create(generationTasks);
-          }
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // v1 的 settings_table 无主键;settings 尚无任何数据,重建即可
+        await m.drop(settingsTable);
+        await m.create(settingsTable);
+      }
+      if (from < 3) {
+        // v2 无预算表,新建即可
+        await m.create(budgetDays);
+      }
+      if (from < 4) {
+        // v3 无生成任务表,新建即可
+        await m.create(generationTasks);
+      }
+    },
+  );
 }

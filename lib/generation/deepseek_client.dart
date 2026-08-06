@@ -76,10 +76,12 @@ class DeepSeekClient {
     try {
       final resp = await _dio.post(
         '$baseUrl/chat/completions',
-        options: Options(headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-        }),
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+        ),
         data: {
           'model': model,
           'messages': [
@@ -140,7 +142,8 @@ class DeepSeekClient {
       );
     }
     try {
-      return jsonDecode(candidate.substring(start, end + 1)) as Map<String, dynamic>;
+      return jsonDecode(candidate.substring(start, end + 1))
+          as Map<String, dynamic>;
     } catch (_) {
       throw const GenerationApiException(
         GenerationErrorKind.validation,

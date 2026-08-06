@@ -114,9 +114,7 @@ class _WordListPageState extends State<WordListPage> {
               return ListTile(
                 title: Text(w.headword),
                 subtitle: Text(
-                  WordStatus.values
-                      .firstWhere((s) => s.name == w.status)
-                      .label,
+                  WordStatus.values.firstWhere((s) => s.name == w.status).label,
                   style: const TextStyle(fontSize: 12),
                 ),
                 onTap: () async {

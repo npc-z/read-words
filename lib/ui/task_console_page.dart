@@ -69,9 +69,13 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
       _words.where((w) => w.status == WordStatus.done.name).length;
   int get _failureCount =>
       _words.where((w) => w.status == WordStatus.failed.name).length;
-  int get _pendingCount => _words.where((w) =>
-      w.status == WordStatus.queued.name ||
-      w.status == WordStatus.generating.name).length;
+  int get _pendingCount => _words
+      .where(
+        (w) =>
+            w.status == WordStatus.queued.name ||
+            w.status == WordStatus.generating.name,
+      )
+      .length;
 
   String _badge() {
     if (_cancelled) return '已取消';
@@ -93,9 +97,9 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
     await widget.queue.continueBackground();
     if (widget.queue.budgetExhausted && mounted) {
       // 同日仍达限:给用户反馈而非静默无操作
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已达今日预算,次日重置后可继续')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已达今日预算,次日重置后可继续')));
     }
   }
 
@@ -106,18 +110,11 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
       appBar: AppBar(
         title: const Text('生成任务'),
         actions: [
-          if (!_loading &&
-              _pendingCount > 0) ...[
+          if (!_loading && _pendingCount > 0) ...[
             if (queue.paused)
-              TextButton(
-                onPressed: queue.resume,
-                child: const Text('继续'),
-              ),
+              TextButton(onPressed: queue.resume, child: const Text('继续')),
             if (queue.running && !queue.paused)
-              TextButton(
-                onPressed: queue.pause,
-                child: const Text('暂停'),
-              ),
+              TextButton(onPressed: queue.pause, child: const Text('暂停')),
             TextButton(onPressed: _cancel, child: const Text('取消')),
           ],
         ],
@@ -136,10 +133,7 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
                   onContinue: _continueBackground,
                 ),
                 Expanded(
-                  child: _TaskList(
-                    words: _words,
-                    queue: queue,
-                  ),
+                  child: _TaskList(words: _words, queue: queue),
                 ),
               ],
             ),
@@ -177,10 +171,7 @@ class _ProgressCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Chip(
-                  label: Text(badge),
-                  visualDensity: VisualDensity.compact,
-                ),
+                Chip(label: Text(badge), visualDensity: VisualDensity.compact),
                 const Spacer(),
                 Text(
                   '成功 $successCount · 失败 $failureCount · 剩余 $pendingCount',
@@ -260,9 +251,7 @@ class _SegmentedBar extends StatelessWidget {
         child: Row(
           children: [
             for (final w in words)
-              Expanded(
-                child: ColoredBox(color: statusColor(w.status)),
-              ),
+              Expanded(child: ColoredBox(color: statusColor(w.status))),
           ],
         ),
       ),
@@ -271,17 +260,17 @@ class _SegmentedBar extends StatelessWidget {
 }
 
 Color statusColor(String status) => switch (status) {
-      'done' => const Color(0xFF34C759),
-      'failed' => const Color(0xFFFF3B30),
-      'generating' => const Color(0xFF2563EB),
-      'queued' => const Color(0xFFFFCC00),
-      _ => const Color(0xFFE0E0E0),
-    };
+  'done' => const Color(0xFF34C759),
+  'failed' => const Color(0xFFFF3B30),
+  'generating' => const Color(0xFF2563EB),
+  'queued' => const Color(0xFFFFCC00),
+  _ => const Color(0xFFE0E0E0),
+};
 
 WordStatus statusOf(String status) => WordStatus.values.firstWhere(
-      (s) => s.name == status,
-      orElse: () => WordStatus.notGenerated,
-    );
+  (s) => s.name == status,
+  orElse: () => WordStatus.notGenerated,
+);
 
 class _TaskList extends StatelessWidget {
   const _TaskList({required this.words, required this.queue});
@@ -337,15 +326,24 @@ class _StatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (status) {
-      WordStatus.done =>
-        Icon(Icons.check_circle, color: statusColor(status.name)),
+      WordStatus.done => Icon(
+        Icons.check_circle,
+        color: statusColor(status.name),
+      ),
       WordStatus.failed => Icon(Icons.error, color: statusColor(status.name)),
-      WordStatus.generating =>
-        const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-      WordStatus.queued =>
-        Icon(Icons.schedule, color: statusColor(status.name)),
-      WordStatus.notGenerated =>
-        Icon(Icons.circle_outlined, color: statusColor(status.name)),
+      WordStatus.generating => const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      WordStatus.queued => Icon(
+        Icons.schedule,
+        color: statusColor(status.name),
+      ),
+      WordStatus.notGenerated => Icon(
+        Icons.circle_outlined,
+        color: statusColor(status.name),
+      ),
     };
   }
 }

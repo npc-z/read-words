@@ -18,7 +18,7 @@ class BudgetState {
 /// 自然日按本地时区切分,持久化于 SQLite(重启保留);跨日即隐式重置。
 class BudgetLedger {
   BudgetLedger({required this.repositories, DateTime Function()? now})
-      : _now = now ?? defaultNow;
+    : _now = now ?? defaultNow;
 
   final Repositories repositories;
   final DateTime Function() _now;

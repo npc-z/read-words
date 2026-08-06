@@ -42,7 +42,9 @@ void main() {
   }
 
   Future<void> writeDueState(int wordId, {int daysAgo = 0}) async {
-    await db.into(db.reviewStatesTable).insertOnConflictUpdate(
+    await db
+        .into(db.reviewStatesTable)
+        .insertOnConflictUpdate(
           ReviewStatesTableCompanion.insert(
             wordId: Value(wordId),
             known: const Value(true),
@@ -56,29 +58,32 @@ void main() {
         );
   }
 
-  Future<void> pumpReviewPage(
-    WidgetTester tester,
-    WordSet wordSet,
-  ) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ReviewQueuePage(
-        wordSet: wordSet,
-        repositories: repo,
-        queue: queue,
+  Future<void> pumpReviewPage(WidgetTester tester, WordSet wordSet) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewQueuePage(
+          wordSet: wordSet,
+          repositories: repo,
+          queue: queue,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('word list has review entry with due badge that opens the page', (tester) async {
+  testWidgets('word list has review entry with due badge that opens the page', (
+    tester,
+  ) async {
     final set = await addSet('高考词汇');
     await addWord(set.id, 'run');
     final due = await addWord(set.id, 'apple');
     await writeDueState(due);
 
-    await tester.pumpWidget(MaterialApp(
-      home: WordListPage(wordSet: set, repositories: repo, queue: queue),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WordListPage(wordSet: set, repositories: repo, queue: queue),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('复习'), findsOneWidget);
@@ -91,7 +96,9 @@ void main() {
     expect(find.text('apple'), findsOneWidget);
   });
 
-  testWidgets('review page lists due words, excludes future and unmarked', (tester) async {
+  testWidgets('review page lists due words, excludes future and unmarked', (
+    tester,
+  ) async {
     final set = await addSet('s');
     final due = await addWord(set.id, 'due');
     final future = await addWord(set.id, 'future');
@@ -117,7 +124,9 @@ void main() {
     expect(find.text('今天没有到期词'), findsOneWidget);
   });
 
-  testWidgets('completing a review advances interval and removes from list', (tester) async {
+  testWidgets('completing a review advances interval and removes from list', (
+    tester,
+  ) async {
     final set = await addSet('s');
     final due = await addWord(set.id, 'due');
     await writeDueState(due);
@@ -168,10 +177,14 @@ void main() {
     expect(find.text('简单句 · 核心用法'), findsNothing);
   });
 
-  testWidgets('detail page without initialMode still uses settings default', (tester) async {
+  testWidgets('detail page without initialMode still uses settings default', (
+    tester,
+  ) async {
     final set = await addSet('s');
     final wordId = await addWord(set.id, 'mode');
-    await repo.saveSettings(const AppSettings(defaultViewMode: ViewMode.lookup));
+    await repo.saveSettings(
+      const AppSettings(defaultViewMode: ViewMode.lookup),
+    );
     await repo.saveMaterial(
       wordId,
       MaterialData(
@@ -188,9 +201,11 @@ void main() {
     );
     final word = (await repo.wordsInSet(set.id)).first;
 
-    await tester.pumpWidget(MaterialApp(
-      home: WordDetailPage(word: word, repositories: repo, queue: queue),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WordDetailPage(word: word, repositories: repo, queue: queue),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 查阅模式特征:词性行 + 释义,无复习箭头
@@ -198,7 +213,9 @@ void main() {
     expect(find.text('v.'), findsOneWidget);
   });
 
-  testWidgets('marking known/unknown on detail page enters review cycle', (tester) async {
+  testWidgets('marking known/unknown on detail page enters review cycle', (
+    tester,
+  ) async {
     final set = await addSet('s');
     final wordId = await addWord(set.id, 'mark');
     await repo.saveMaterial(
@@ -217,9 +234,11 @@ void main() {
     );
     final word = (await repo.wordsInSet(set.id)).first;
 
-    await tester.pumpWidget(MaterialApp(
-      home: WordDetailPage(word: word, repositories: repo, queue: queue),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WordDetailPage(word: word, repositories: repo, queue: queue),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('认识'), findsOneWidget);
@@ -237,9 +256,11 @@ void main() {
 
     // 标记后次日进入到期列表
     await writeDueState(wordId);
-    await tester.pumpWidget(MaterialApp(
-      home: ReviewQueuePage(wordSet: set, repositories: repo, queue: queue),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewQueuePage(wordSet: set, repositories: repo, queue: queue),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('mark'), findsOneWidget);
   });

@@ -23,7 +23,9 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> pumpSettings(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(home: SettingsPage(repositories: repo)));
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(repositories: repo)),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -39,15 +41,17 @@ void main() {
   });
 
   testWidgets('renders stored values', (tester) async {
-    await repo.saveSettings(const AppSettings(
-      level: EnglishLevel.cet46,
-      dailyReadingX: 30,
-      budgetMultiple: 2,
-      concurrency: 8,
-      apiKey: 'sk-abc',
-      defaultViewMode: ViewMode.review,
-      displayMode: DisplayMode.en,
-    ));
+    await repo.saveSettings(
+      const AppSettings(
+        level: EnglishLevel.cet46,
+        dailyReadingX: 30,
+        budgetMultiple: 2,
+        concurrency: 8,
+        apiKey: 'sk-abc',
+        defaultViewMode: ViewMode.review,
+        displayMode: DisplayMode.en,
+      ),
+    );
     await pumpSettings(tester);
 
     expect(find.text('四六级'), findsOneWidget);
@@ -92,7 +96,9 @@ void main() {
     expect((await repo.settings()).apiKey, 'sk-new');
   });
 
-  testWidgets('invalid or zero numbers are not persisted and revert on blur', (tester) async {
+  testWidgets('invalid or zero numbers are not persisted and revert on blur', (
+    tester,
+  ) async {
     await pumpSettings(tester);
 
     // 非法输入:不持久化
@@ -112,7 +118,9 @@ void main() {
     expect(find.widgetWithText(TextField, '50'), findsOneWidget);
   });
 
-  testWidgets('changing view mode and display mode persists immediately', (tester) async {
+  testWidgets('changing view mode and display mode persists immediately', (
+    tester,
+  ) async {
     await pumpSettings(tester);
 
     await tester.tap(find.text('学习模式'));
@@ -128,17 +136,18 @@ void main() {
     expect((await repo.settings()).displayMode, DisplayMode.zh);
   });
 
-  testWidgets('word set list page has settings entry that opens the page', (tester) async {
+  testWidgets('word set list page has settings entry that opens the page', (
+    tester,
+  ) async {
     final queue = GenerationQueue(
       repositories: repo,
-      service: GenerationService(
-        client: FakeClient(),
-        repositories: repo,
+      service: GenerationService(client: FakeClient(), repositories: repo),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WordSetListPage(repositories: repo, queue: queue),
       ),
     );
-    await tester.pumpWidget(MaterialApp(
-      home: WordSetListPage(repositories: repo, queue: queue),
-    ));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('设置'), findsOneWidget);

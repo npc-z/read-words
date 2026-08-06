@@ -15,19 +15,22 @@ import 'package:read_words/data/app_database.dart';
 /// SharedWorker 探测/通道初始化不返回),超时把"永久转圈"变成可见错误。
 Future<AppDatabase> openDatabase() async {
   final connection = kIsWeb
-      ? DatabaseConnection.delayed(Future(() async {
-          final result = await wasm.WasmDatabase.open(
-            databaseName: 'read_words',
-            sqlite3Uri: Uri.parse('sqlite3.wasm'),
-            driftWorkerUri: Uri.parse('drift_worker.js'),
-          ).timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              throw TimeoutException('数据库打开超时(Web WASM 初始化)');
-            },
-          );
-          return result.resolvedExecutor;
-        }))
+      ? DatabaseConnection.delayed(
+          Future(() async {
+            final result =
+                await wasm.WasmDatabase.open(
+                  databaseName: 'read_words',
+                  sqlite3Uri: Uri.parse('sqlite3.wasm'),
+                  driftWorkerUri: Uri.parse('drift_worker.js'),
+                ).timeout(
+                  const Duration(seconds: 20),
+                  onTimeout: () {
+                    throw TimeoutException('数据库打开超时(Web WASM 初始化)');
+                  },
+                );
+            return result.resolvedExecutor;
+          }),
+        )
       : driftDatabase(name: 'read_words');
   return AppDatabase(connection);
 }

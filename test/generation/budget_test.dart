@@ -29,12 +29,16 @@ void main() {
   test('limit = dailyReadingX × budgetMultiple from settings', () async {
     expect((await ledger().state()).limit, 150); // 默认 50 × 3
 
-    await repo.saveSettings(const AppSettings(dailyReadingX: 5, budgetMultiple: 4));
+    await repo.saveSettings(
+      const AppSettings(dailyReadingX: 5, budgetMultiple: 4),
+    );
     expect((await ledger().state()).limit, 20);
   });
 
   test('reserve succeeds until limit, then fails (hard cap)', () async {
-    await repo.saveSettings(const AppSettings(dailyReadingX: 2, budgetMultiple: 2));
+    await repo.saveSettings(
+      const AppSettings(dailyReadingX: 2, budgetMultiple: 2),
+    );
     final l = ledger();
     expect((await l.state()).used, 0);
 
@@ -49,7 +53,9 @@ void main() {
   });
 
   test('release frees a slot and never goes below zero', () async {
-    await repo.saveSettings(const AppSettings(dailyReadingX: 2, budgetMultiple: 2));
+    await repo.saveSettings(
+      const AppSettings(dailyReadingX: 2, budgetMultiple: 2),
+    );
     final l = ledger();
     await l.reserve();
     await l.reserve();
@@ -65,7 +71,9 @@ void main() {
   });
 
   test('natural day rollover resets used (local timezone)', () async {
-    await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
+    await repo.saveSettings(
+      const AppSettings(dailyReadingX: 1, budgetMultiple: 1),
+    );
     final l = ledger();
     await l.reserve();
     expect((await l.state()).exhausted, isTrue);

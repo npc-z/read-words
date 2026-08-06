@@ -117,9 +117,9 @@ class _WordDetailPageState extends State<WordDetailPage> {
   Future<void> _mark(bool known) async {
     await widget.repositories.markKnown(widget.word.id, known: known);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(known ? '已标记认识' : '已标记不认识')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(known ? '已标记认识' : '已标记不认识')));
   }
 
   List<Sense> _senses() {

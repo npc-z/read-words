@@ -34,7 +34,8 @@ class ImportService {
     } else {
       // txt:优先按定界解析(单词-释义),失败降级纯单词
       final delimited = parseDelimited(content);
-      if (delimited.words.isNotEmpty && (delimited.meanings.isNotEmpty || _looksTabular(content))) {
+      if (delimited.words.isNotEmpty &&
+          (delimited.meanings.isNotEmpty || _looksTabular(content))) {
         parsed = delimited;
       } else {
         parsed = parseTxt(content);
@@ -43,9 +44,9 @@ class ImportService {
 
     if (parsed.words.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('未识别出任何单词')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('未识别出任何单词')));
       }
       return null;
     }
@@ -97,18 +98,27 @@ class ImportService {
               Flexible(
                 child: SingleChildScrollView(
                   child: Table(
-                    columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
+                    columnWidths: const {
+                      0: IntrinsicColumnWidth(),
+                      1: FlexColumnWidth(),
+                    },
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     children: [
                       const TableRow(
                         children: [
                           Padding(
                             padding: EdgeInsets.all(4),
-                            child: Text('单词', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: Text(
+                              '单词',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                           Padding(
                             padding: EdgeInsets.all(4),
-                            child: Text('释义', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: Text(
+                              '释义',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ],
                       ),
@@ -122,7 +132,9 @@ class ImportService {
                             Padding(
                               padding: const EdgeInsets.all(4),
                               child: Text(
-                                parsed.meanings[w] ?? parsed.phonetics[w] ?? '—',
+                                parsed.meanings[w] ??
+                                    parsed.phonetics[w] ??
+                                    '—',
                                 style: const TextStyle(color: Colors.grey),
                               ),
                             ),
@@ -136,8 +148,14 @@ class ImportService {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确认导入')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认导入'),
+          ),
         ],
       ),
     );

@@ -48,7 +48,10 @@ class _WordSetListPageState extends State<WordSetListPage> {
           decoration: const InputDecoration(hintText: '词集名称,如:高考词汇'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('创建'),
@@ -68,9 +71,9 @@ class _WordSetListPageState extends State<WordSetListPage> {
       repositories: widget.repositories,
     );
     if (added != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导入 $added 个新词')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('已导入 $added 个新词')));
       _reload();
     }
   }
@@ -140,9 +143,15 @@ class _WordSetListPageState extends State<WordSetListPage> {
                 children: [
                   const Text('还没有词集', style: TextStyle(fontSize: 18)),
                   const SizedBox(height: 8),
-                  const Text('创建一个词集,然后导入单词表开始学习', style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    '创建一个词集,然后导入单词表开始学习',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 16),
-                  FilledButton(onPressed: _createWordSet, child: const Text('创建词集')),
+                  FilledButton(
+                    onPressed: _createWordSet,
+                    child: const Text('创建词集'),
+                  ),
                 ],
               ),
             );
@@ -155,7 +164,9 @@ class _WordSetListPageState extends State<WordSetListPage> {
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
                   title: Text(set.name),
-                  subtitle: Text('创建于 ${set.createdAt.toLocal().toString().substring(0, 10)}'),
+                  subtitle: Text(
+                    '创建于 ${set.createdAt.toLocal().toString().substring(0, 10)}',
+                  ),
                   onTap: () async {
                     await Navigator.push(
                       context,

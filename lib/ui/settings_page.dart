@@ -31,8 +31,9 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _xController = TextEditingController(text: '${_settings.dailyReadingX}');
     _mController = TextEditingController(text: '${_settings.budgetMultiple}');
-    _concurrencyController =
-        TextEditingController(text: '${_settings.concurrency}');
+    _concurrencyController = TextEditingController(
+      text: '${_settings.concurrency}',
+    );
     _apiKeyController = TextEditingController(text: _settings.apiKey);
     _xFocus = FocusNode()..addListener(_onXFocusChanged);
     _mFocus = FocusNode()..addListener(_onMFocusChanged);
@@ -56,8 +57,11 @@ class _SettingsPageState extends State<SettingsPage> {
       _revertIfInvalid(_xFocus, _xController, _settings.dailyReadingX);
   void _onMFocusChanged() =>
       _revertIfInvalid(_mFocus, _mController, _settings.budgetMultiple);
-  void _onConcurrencyFocusChanged() =>
-      _revertIfInvalid(_concurrencyFocus, _concurrencyController, _settings.concurrency);
+  void _onConcurrencyFocusChanged() => _revertIfInvalid(
+    _concurrencyFocus,
+    _concurrencyController,
+    _settings.concurrency,
+  );
 
   /// 失焦时非法输入回退为当前持久化值,避免显示与存储分叉
   void _revertIfInvalid(
@@ -96,9 +100,9 @@ class _SettingsPageState extends State<SettingsPage> {
       await widget.repositories.saveSettings(updated);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('设置保存失败:${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('设置保存失败:${e.toString()}')));
     }
   }
 
@@ -149,87 +153,96 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             )
           : !_loaded
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    const Text('英语水平', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    SegmentedButton<EnglishLevel>(
-                      segments: [
-                        for (final level in EnglishLevel.values)
-                          ButtonSegment(value: level, label: Text(level.label)),
-                      ],
-                      selected: {_settings.level},
-                      onSelectionChanged: (selection) =>
-                          _save(_settings.copyWith(level: selection.first)),
-                    ),
-                    const SizedBox(height: 24),
-                    _numberField(
-                      controller: _xController,
-                      focusNode: _xFocus,
-                      label: '每日阅读量 X(每天学的词数,预算基数)',
-                      current: _settings.dailyReadingX,
-                      update: (n) => _settings.copyWith(dailyReadingX: n),
-                    ),
-                    const SizedBox(height: 16),
-                    _numberField(
-                      controller: _mController,
-                      focusNode: _mFocus,
-                      label: '预算倍数 M(后台预生成 = M × X 词)',
-                      current: _settings.budgetMultiple,
-                      update: (n) => _settings.copyWith(budgetMultiple: n),
-                    ),
-                    const SizedBox(height: 16),
-                    _numberField(
-                      controller: _concurrencyController,
-                      focusNode: _concurrencyFocus,
-                      label: '生成并发数',
-                      current: _settings.concurrency,
-                      update: (n) => _settings.copyWith(concurrency: n),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _apiKeyController,
-                      obscureText: _obscureKey,
-                      decoration: InputDecoration(
-                        labelText: 'AI API Key(OpenAI 兼容)',
-                        suffixIcon: IconButton(
-                          tooltip: '显示/隐藏',
-                          icon: Icon(
-                            _obscureKey ? Icons.visibility : Icons.visibility_off,
-                          ),
-                          onPressed: () => setState(() => _obscureKey = !_obscureKey),
-                        ),
-                      ),
-                      onChanged: (text) => _save(_settings.copyWith(apiKey: text.trim())),
-                    ),
-                    const SizedBox(height: 24),
-                    DropdownButtonFormField<ViewMode>(
-                      initialValue: _settings.defaultViewMode,
-                      decoration: const InputDecoration(labelText: '默认视图模式'),
-                      items: [
-                        for (final mode in ViewMode.values)
-                          DropdownMenuItem(value: mode, child: Text(mode.label)),
-                      ],
-                      onChanged: (mode) {
-                        if (mode != null) _save(_settings.copyWith(defaultViewMode: mode));
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<DisplayMode>(
-                      initialValue: _settings.displayMode,
-                      decoration: const InputDecoration(labelText: '展示配置(例句区)'),
-                      items: [
-                        for (final mode in DisplayMode.values)
-                          DropdownMenuItem(value: mode, child: Text(mode.label)),
-                      ],
-                      onChanged: (mode) {
-                        if (mode != null) _save(_settings.copyWith(displayMode: mode));
-                      },
-                    ),
-                  ],
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  '英语水平',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
+                SegmentedButton<EnglishLevel>(
+                  segments: [
+                    for (final level in EnglishLevel.values)
+                      ButtonSegment(value: level, label: Text(level.label)),
+                  ],
+                  selected: {_settings.level},
+                  onSelectionChanged: (selection) =>
+                      _save(_settings.copyWith(level: selection.first)),
+                ),
+                const SizedBox(height: 24),
+                _numberField(
+                  controller: _xController,
+                  focusNode: _xFocus,
+                  label: '每日阅读量 X(每天学的词数,预算基数)',
+                  current: _settings.dailyReadingX,
+                  update: (n) => _settings.copyWith(dailyReadingX: n),
+                ),
+                const SizedBox(height: 16),
+                _numberField(
+                  controller: _mController,
+                  focusNode: _mFocus,
+                  label: '预算倍数 M(后台预生成 = M × X 词)',
+                  current: _settings.budgetMultiple,
+                  update: (n) => _settings.copyWith(budgetMultiple: n),
+                ),
+                const SizedBox(height: 16),
+                _numberField(
+                  controller: _concurrencyController,
+                  focusNode: _concurrencyFocus,
+                  label: '生成并发数',
+                  current: _settings.concurrency,
+                  update: (n) => _settings.copyWith(concurrency: n),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _apiKeyController,
+                  obscureText: _obscureKey,
+                  decoration: InputDecoration(
+                    labelText: 'AI API Key(OpenAI 兼容)',
+                    suffixIcon: IconButton(
+                      tooltip: '显示/隐藏',
+                      icon: Icon(
+                        _obscureKey ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureKey = !_obscureKey),
+                    ),
+                  ),
+                  onChanged: (text) =>
+                      _save(_settings.copyWith(apiKey: text.trim())),
+                ),
+                const SizedBox(height: 24),
+                DropdownButtonFormField<ViewMode>(
+                  initialValue: _settings.defaultViewMode,
+                  decoration: const InputDecoration(labelText: '默认视图模式'),
+                  items: [
+                    for (final mode in ViewMode.values)
+                      DropdownMenuItem(value: mode, child: Text(mode.label)),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      _save(_settings.copyWith(defaultViewMode: mode));
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<DisplayMode>(
+                  initialValue: _settings.displayMode,
+                  decoration: const InputDecoration(labelText: '展示配置(例句区)'),
+                  items: [
+                    for (final mode in DisplayMode.values)
+                      DropdownMenuItem(value: mode, child: Text(mode.label)),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      _save(_settings.copyWith(displayMode: mode));
+                    }
+                  },
+                ),
+              ],
+            ),
     );
   }
 }

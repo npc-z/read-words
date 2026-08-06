@@ -15,14 +15,14 @@ void main() {
             'pos': 'v.',
             'meaning': 'to move',
             'examples': [
-              {'level': 1, 'en': 'I run.', 'zh': '我跑。'}
-            ]
-          }
+              {'level': 1, 'en': 'I run.', 'zh': '我跑。'},
+            ],
+          },
         ],
         'phrases': [
-          {'phrase': 'run out of', 'en': 'We ran out.', 'zh': '我们用完了。'}
+          {'phrase': 'run out of', 'en': 'We ran out.', 'zh': '我们用完了。'},
         ],
-        'unclassified_examples': []
+        'unclassified_examples': [],
       };
       final c = GeneratedWordContent.fromJson(json);
       expect(c, isNotNull);
@@ -42,10 +42,10 @@ void main() {
             'pos': 'n.',
             'meaning': 'm',
             'examples': [
-              {'level': 9, 'en': 'a', 'zh': 'b'}
-            ]
-          }
-        ]
+              {'level': 9, 'en': 'a', 'zh': 'b'},
+            ],
+          },
+        ],
       };
       final c = GeneratedWordContent.fromJson(json);
       expect(c, isNotNull);
@@ -69,13 +69,19 @@ void main() {
       final effL2 = l2 - (unclassified >= 1 ? 1 : 0);
       final effL3 = l3 - (unclassified >= 2 ? 1 : 0);
       final senses = <Sense>[
-        Sense(pos: 'v.', meaning: 'm', examples: [
-          for (var i = 0; i < l1; i++) ex(1, 'a$i'),
-          for (var i = 0; i < effL2; i++) ex(2, 'b$i'),
-        ]),
-        Sense(pos: 'n.', meaning: 'n', examples: [
-          for (var i = 0; i < effL3; i++) ex(3, 'c$i'),
-        ]),
+        Sense(
+          pos: 'v.',
+          meaning: 'm',
+          examples: [
+            for (var i = 0; i < l1; i++) ex(1, 'a$i'),
+            for (var i = 0; i < effL2; i++) ex(2, 'b$i'),
+          ],
+        ),
+        Sense(
+          pos: 'n.',
+          meaning: 'n',
+          examples: [for (var i = 0; i < effL3; i++) ex(3, 'c$i')],
+        ),
       ];
       return GeneratedWordContent(
         word: 'run',
@@ -131,7 +137,8 @@ void main() {
     test('short simple sentence scores higher than long complex', () {
       final simple = freScore('I run every morning.');
       final complex = freScore(
-          'Having run the length of the corridor, he collapsed breathless against the door, gasping for air and clutching his chest.');
+        'Having run the length of the corridor, he collapsed breathless against the door, gasping for air and clutching his chest.',
+      );
       expect(simple, greaterThan(complex));
     });
 
@@ -139,17 +146,36 @@ void main() {
       final content = GeneratedWordContent(
         word: 'x',
         senses: [
-          Sense(pos: 'v.', meaning: 'm', examples: [
-            ex(1, 'I run.'),
-            ex(1, 'She walks.'),
-            ex(1, 'We eat rice.'),
-            ex(2, 'He said that he would go to the store on Sunday.'),
-            ex(2, 'The dog that barked loudly was sleeping under the old wooden table in the kitchen.'),
-            ex(2, 'Although the weather was cold and rainy, we decided to continue our long walk along the river.'),
-            ex(3, 'Having run the length of the corridor, he collapsed breathless against the door, gasping for air.'),
-            ex(3, 'The committee, having deliberated extensively, concluded that the proposal should be implemented immediately.'),
-            ex(3, 'While the storm raged outside, the children, exhausted from their journey, slept peacefully in the old cabin.'),
-          ]),
+          Sense(
+            pos: 'v.',
+            meaning: 'm',
+            examples: [
+              ex(1, 'I run.'),
+              ex(1, 'She walks.'),
+              ex(1, 'We eat rice.'),
+              ex(2, 'He said that he would go to the store on Sunday.'),
+              ex(
+                2,
+                'The dog that barked loudly was sleeping under the old wooden table in the kitchen.',
+              ),
+              ex(
+                2,
+                'Although the weather was cold and rainy, we decided to continue our long walk along the river.',
+              ),
+              ex(
+                3,
+                'Having run the length of the corridor, he collapsed breathless against the door, gasping for air.',
+              ),
+              ex(
+                3,
+                'The committee, having deliberated extensively, concluded that the proposal should be implemented immediately.',
+              ),
+              ex(
+                3,
+                'While the storm raged outside, the children, exhausted from their journey, slept peacefully in the old cabin.',
+              ),
+            ],
+          ),
         ],
       );
       final r = validateProgression(content);

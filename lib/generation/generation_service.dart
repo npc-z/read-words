@@ -38,13 +38,21 @@ class GenerationService {
   final void Function(int done, int total, GenerationOutcome last)? onProgress;
 
   /// 生成一个词并落库。若词典素材存在则传入作为上下文(§5 拼接规则)。
-  Future<GenerationOutcome> generateWord(int wordId, {String? dictionaryContext}) async {
+  Future<GenerationOutcome> generateWord(
+    int wordId, {
+    String? dictionaryContext,
+  }) async {
     final word = await repositories.wordById(wordId);
-    if (word == null) return const GenerationOutcome(failed: true, error: '词不存在');
+    if (word == null) {
+      return const GenerationOutcome(failed: true, error: '词不存在');
+    }
     await repositories.setWordStatus(wordId, WordStatus.generating);
 
     try {
-      final result = await _generateWithRetries(word.headword, dictionaryContext);
+      final result = await _generateWithRetries(
+        word.headword,
+        dictionaryContext,
+      );
 
       // §4.2 硬性校验 + §6.4 软校验
       final hard = validateContent(result.content, expectWord: word.headword);
@@ -63,8 +71,9 @@ class GenerationService {
           phoneticUs: result.content.phoneticUs,
           sensesJson: jsonEncode(result.content.toJson()['senses']),
           phrasesJson: jsonEncode(result.content.toJson()['phrases']),
-          unclassifiedExamplesJson:
-              jsonEncode(result.content.toJson()['unclassified_examples']),
+          unclassifiedExamplesJson: jsonEncode(
+            result.content.toJson()['unclassified_examples'],
+          ),
           source: 'ai',
         ),
       );
@@ -72,7 +81,11 @@ class GenerationService {
       return GenerationOutcome(word: word.headword);
     } on GenerationApiException catch (e) {
       await repositories.setWordStatus(wordId, WordStatus.failed);
-      return GenerationOutcome(word: word.headword, failed: true, error: e.message);
+      return GenerationOutcome(
+        word: word.headword,
+        failed: true,
+        error: e.message,
+      );
     } catch (e) {
       await repositories.setWordStatus(wordId, WordStatus.failed);
       return GenerationOutcome(word: word.headword, failed: true, error: '$e');
@@ -83,7 +96,11 @@ class GenerationService {
   /// 校验错误重试 2 次(共 3 次尝试,属 prompt 质量问题退避无用)。
   Future<dynamic> _generateWithRetries(String word, String? context) async {
     GenerationApiException? lastTransient;
-    const transientDelays = [Duration(seconds: 1), Duration(seconds: 4), Duration(seconds: 16)];
+    const transientDelays = [
+      Duration(seconds: 1),
+      Duration(seconds: 4),
+      Duration(seconds: 16),
+    ];
     const validationAttempts = 3; // 初始 1 + 重试 2
     const transientAttempts = 4; // 初始 1 + 重试 3
     for (var attempt = 0; attempt < transientAttempts; attempt++) {

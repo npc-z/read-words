@@ -42,7 +42,8 @@ class FakeClient extends DeepSeekClient {
       await g.future;
     }
     if (errorToThrow != null) throw errorToThrow!;
-    final json = contentOverride ??
+    final json =
+        contentOverride ??
         {
           'word': word,
           'phonetic': {'uk': '/x/', 'us': '/x/'},

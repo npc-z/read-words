@@ -82,15 +82,17 @@ void main() {
       final file = File('${dir.path}/test.db');
       try {
         final db1 = AppDatabase(NativeDatabase(file));
-        await Repositories(db1).saveSettings(const AppSettings(
-          level: EnglishLevel.cet46,
-          dailyReadingX: 20,
-          budgetMultiple: 5,
-          concurrency: 2,
-          apiKey: 'sk-restart',
-          defaultViewMode: ViewMode.lookup,
-          displayMode: DisplayMode.zh,
-        ));
+        await Repositories(db1).saveSettings(
+          const AppSettings(
+            level: EnglishLevel.cet46,
+            dailyReadingX: 20,
+            budgetMultiple: 5,
+            concurrency: 2,
+            apiKey: 'sk-restart',
+            defaultViewMode: ViewMode.lookup,
+            displayMode: DisplayMode.zh,
+          ),
+        );
         await db1.close();
 
         final db2 = AppDatabase(NativeDatabase(file));

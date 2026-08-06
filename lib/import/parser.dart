@@ -141,9 +141,15 @@ ParseResult parseDelimited(String content) {
   if (rows.isEmpty) return const ParseResult(words: [], skipped: 0);
 
   final header = rows.first.map((c) => c.trim().toLowerCase()).toList();
-  var wordIdx = header.indexWhere((h) => _matchesAny(h, ['word', '单词', 'headword', '词头', '词汇']));
-  final meaningIdx = header.indexWhere((h) => _matchesAny(h, ['meaning', '释义', 'translation', '翻译', '中文']));
-  final phoneticIdx = header.indexWhere((h) => _matchesAny(h, ['phonetic', '音标', 'ipa']));
+  var wordIdx = header.indexWhere(
+    (h) => _matchesAny(h, ['word', '单词', 'headword', '词头', '词汇']),
+  );
+  final meaningIdx = header.indexWhere(
+    (h) => _matchesAny(h, ['meaning', '释义', 'translation', '翻译', '中文']),
+  );
+  final phoneticIdx = header.indexWhere(
+    (h) => _matchesAny(h, ['phonetic', '音标', 'ipa']),
+  );
   final isHeader = wordIdx >= 0 || meaningIdx >= 0 || phoneticIdx >= 0;
   if (!isHeader) {
     wordIdx = 0;
@@ -169,14 +175,22 @@ ParseResult parseDelimited(String content) {
     if (effMeaningIdx >= 0 && row.length > effMeaningIdx) {
       meanings[word] = row[effMeaningIdx].trim();
     }
-    if (phoneticIdx >= 0 && row.length > phoneticIdx) phonetics[word] = row[phoneticIdx].trim();
+    if (phoneticIdx >= 0 && row.length > phoneticIdx) {
+      phonetics[word] = row[phoneticIdx].trim();
+    }
   }
-  return ParseResult(words: words, meanings: meanings, phonetics: phonetics, skipped: skipped);
+  return ParseResult(
+    words: words,
+    meanings: meanings,
+    phonetics: phonetics,
+    skipped: skipped,
+  );
 }
 
 bool _matchesAny(String s, List<String> candidates) => candidates.contains(s);
 
-String _detectDelimiter(String text) {  final firstLine = text.split('\n').first;
+String _detectDelimiter(String text) {
+  final firstLine = text.split('\n').first;
   final tabs = firstLine.split('\t').length;
   final commas = firstLine.split(',').length;
   return tabs > commas ? '\t' : ',';

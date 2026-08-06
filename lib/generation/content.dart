@@ -14,10 +14,10 @@ class Sense {
   final List<Example> examples;
 
   Map<String, dynamic> toJson() => {
-        'pos': pos,
-        'meaning': meaning,
-        'examples': examples.map((e) => e.toJson()).toList(),
-      };
+    'pos': pos,
+    'meaning': meaning,
+    'examples': examples.map((e) => e.toJson()).toList(),
+  };
 
   static Sense? fromJson(Map<String, dynamic> json) {
     final pos = json['pos'];
@@ -96,15 +96,17 @@ class GeneratedWordContent {
   final String phoneticUs;
 
   Map<String, dynamic> toJson() => {
-        'word': word,
-        'phonetic': {
-          if (phoneticUk.isNotEmpty) 'uk': phoneticUk,
-          if (phoneticUs.isNotEmpty) 'us': phoneticUs,
-        },
-        'senses': senses.map((s) => s.toJson()).toList(),
-        'phrases': phrases.map((p) => p.toJson()).toList(),
-        'unclassified_examples': unclassifiedExamples.map((e) => e.toJson()).toList(),
-      };
+    'word': word,
+    'phonetic': {
+      if (phoneticUk.isNotEmpty) 'uk': phoneticUk,
+      if (phoneticUs.isNotEmpty) 'us': phoneticUs,
+    },
+    'senses': senses.map((s) => s.toJson()).toList(),
+    'phrases': phrases.map((p) => p.toJson()).toList(),
+    'unclassified_examples': unclassifiedExamples
+        .map((e) => e.toJson())
+        .toList(),
+  };
 
   static GeneratedWordContent? fromJson(Map<String, dynamic> json) {
     final word = json['word'];
@@ -157,9 +159,9 @@ class GeneratedWordContent {
 
   /// 全部例句(含未分类)
   List<Example> get allExamples => [
-        for (final s in senses) ...s.examples,
-        ...unclassifiedExamples,
-      ];
+    for (final s in senses) ...s.examples,
+    ...unclassifiedExamples,
+  ];
 }
 
 /// 校验结果(§4.2 硬性约束 + §6.4 软校验)
@@ -174,10 +176,14 @@ class ValidationResult {
 /// 1. 9 句恒定:L1×3 + L2×3 + L3×3(按 level 全局校验)
 /// 2. 至少 7 句挂在具体 sense 下,最多 2 句 unclassified
 /// 3. 词头一致
-ValidationResult validateContent(GeneratedWordContent content, {String? expectWord}) {
+ValidationResult validateContent(
+  GeneratedWordContent content, {
+  String? expectWord,
+}) {
   final errors = <String>[];
 
-  if (expectWord != null && content.word.toLowerCase() != expectWord.toLowerCase()) {
+  if (expectWord != null &&
+      content.word.toLowerCase() != expectWord.toLowerCase()) {
     errors.add('词头不一致:期望 $expectWord,实际 ${content.word}');
   }
 
@@ -200,7 +206,9 @@ ValidationResult validateContent(GeneratedWordContent content, {String? expectWo
   final attached = total - content.unclassifiedExamples.length;
   if (attached < 7) errors.add('至少 7 句应挂在义项下,实际 $attached');
 
-  if (content.phrases.length > 4) errors.add('短语最多 4 个,实际 ${content.phrases.length}');
+  if (content.phrases.length > 4) {
+    errors.add('短语最多 4 个,实际 ${content.phrases.length}');
+  }
 
   return ValidationResult(ok: errors.isEmpty, errors: errors);
 }
@@ -222,7 +230,9 @@ double freScore(String sentence) {
     if (count < 1) count = 1;
     syllables += count;
   }
-  return 206.835 - 1.015 * (words.length / 1) - 84.6 * (syllables / words.length);
+  return 206.835 -
+      1.015 * (words.length / 1) -
+      84.6 * (syllables / words.length);
 }
 
 /// 分层递进软校验:L1 平均 FRE > L2 平均 FRE > L3 平均 FRE(§4.3)。
@@ -234,11 +244,22 @@ ValidationResult validateProgression(GeneratedWordContent content) {
   double avg(int lvl) {
     final list = byLevel[lvl]!;
     if (list.isEmpty) return double.nan;
-    return list.map((e) => freScore(e.en)).reduce((a, b) => a + b) / list.length;
+    return list.map((e) => freScore(e.en)).reduce((a, b) => a + b) /
+        list.length;
   }
+
   final errors = <String>[];
   final a1 = avg(1), a2 = avg(2), a3 = avg(3);
-  if (!(a1 > a2)) errors.add('FRE 递进失败:L1(${a1.toStringAsFixed(1)}) 应大于 L2(${a2.toStringAsFixed(1)})');
-  if (!(a2 > a3)) errors.add('FRE 递进失败:L2(${a2.toStringAsFixed(1)}) 应大于 L3(${a3.toStringAsFixed(1)})');
+  if (!(a1 > a2)) {
+    errors.add(
+      'FRE 递进失败:L1(${a1.toStringAsFixed(1)}) 应大于 L2(${a2.toStringAsFixed(1)})',
+    );
+  }
+  if (!(a2 > a3)) {
+    errors.add(
+      'FRE 递进失败:L2(${a2.toStringAsFixed(1)}) 应大于 L3(${a3.toStringAsFixed(1)})',
+    );
+  }
+
   return ValidationResult(ok: errors.isEmpty, errors: errors);
 }
