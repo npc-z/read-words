@@ -1,4 +1,4 @@
-/// 生成任务控制(§6:批次、状态流转、单点重试、取消、预算门槛)。
+/// 生成任务控制(§6:批次、并发消费、状态流转、单点重试、取消、暂停/继续、预算)。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -23,7 +23,8 @@ class GenerationTask {
   String? error;
 }
 
-/// 批次控制器:装载词集未生成词,顺序生成,支持单点重试、取消与预算门槛(§6.2)。
+/// 批次控制器:装载词集未生成词,并发消费(§6.5),支持单点重试、取消、
+/// 暂停/继续(§6)与预算门槛(§6.2)。
 class GenerationTaskController extends ChangeNotifier {
   GenerationTaskController({
     required this.wordSetId,
@@ -45,10 +46,17 @@ class GenerationTaskController extends ChangeNotifier {
   bool _started = false;
   bool _running = false;
   bool _cancelled = false;
+  bool _paused = false;
   bool _budgetExhausted = false;
+
+  /// 运行期间有新词入队(重试等);本轮结束后需要再消费一轮
+  bool _dispatchQueued = false;
 
   bool get running => _running;
   bool get cancelled => _cancelled;
+
+  /// 已暂停:不再消费新词,排队词保持 queued(§6)
+  bool get paused => _paused;
 
   /// 已达今日预算(后台预生成上限 M×X,§6.2)
   bool get budgetExhausted => _budgetExhausted;
@@ -85,12 +93,13 @@ class GenerationTaskController extends ChangeNotifier {
     await _run();
   }
 
-  /// 请求取消:当前词完成后停止,剩余排队词回未生成(已生成部分保留)。
-  /// 预算暂停中取消:排队词直接回未生成。
+  /// 请求取消:当前在飞词结算后停止,剩余排队词回未生成(已生成部分保留)。
+  /// 预算暂停/手动暂停中取消:排队词直接回未生成。
   Future<void> cancel() async {
     if (_cancelled) return;
-    if (!_running && !_budgetExhausted) return;
+    if (!_running && !_budgetExhausted && !_paused) return;
     _cancelled = true;
+    _paused = false;
     notifyListeners();
     if (!_running) {
       await _resetQueue();
@@ -99,9 +108,26 @@ class GenerationTaskController extends ChangeNotifier {
     }
   }
 
+  /// 暂停:在飞词结算,不再消费新词(排队词保持 queued)(§6)。
+  Future<void> pause() async {
+    if (!_running || _paused || _cancelled) return;
+    _paused = true;
+    notifyListeners();
+  }
+
+  /// 继续:恢复消费排队词(§6)。
+  Future<void> resume() async {
+    if (!_paused || _cancelled) return;
+    _paused = false;
+    _dispatchQueued = true;
+    notifyListeners();
+    if (_running) return; // 在飞词结算中:当前运行会继续消费
+    await _run();
+  }
+
   /// 继续下一批次:预算达限暂停后,次日自然日重置时恢复剩余排队词(§6.2)。
   Future<void> continueBatch() async {
-    if (_running || !_budgetExhausted) return;
+    if (_running || _paused || !_budgetExhausted) return;
     await _run();
   }
 
@@ -109,15 +135,16 @@ class GenerationTaskController extends ChangeNotifier {
   /// 已达今日预算时不重试(§6.2 预算只约束后台预生成)。
   Future<void> retry(int wordId) async {
     final task = _taskFor(wordId);
-    if (task == null || task.status != WordStatus.failed) return;
+    if (task == null || _cancelled || task.status != WordStatus.failed) return;
     if (await budget.exhausted()) return;
     if (task.status != WordStatus.failed) return; // 双检:await 窗口内已重试
     task.status = WordStatus.queued;
     task.error = null;
     await repositories.setWordStatus(wordId, WordStatus.queued);
     _queue.insert(0, wordId);
+    _dispatchQueued = true; // 运行中的话,当前轮结束后续跑
     notifyListeners();
-    if (_running) return;
+    if (_running || _paused) return; // 运行/暂停中:由批次或继续消费
     await _run();
   }
 
@@ -132,21 +159,54 @@ class GenerationTaskController extends ChangeNotifier {
     budgetState = await budget.state();
   }
 
+  /// 批次消费:并发数从设置读取(§6.5,默认 4),上限保护 16。
+  /// 运行期间有新词入队(重试/继续)则多消费一轮。
   Future<void> _run() async {
-    _running = true;
-    _cancelled = false;
-    _budgetExhausted = false; // 本轮运行中重新判定
-    notifyListeners();
-    try {
-      while (_queue.isNotEmpty && !_cancelled) {
-        // 预算门槛(§6.2):达限暂停,剩余排队词保留
-        await _refreshBudget();
-        if (budgetState!.exhausted) {
-          _budgetExhausted = true;
-          notifyListeners();
-          break;
+    do {
+      _dispatchQueued = false;
+      _running = true;
+      _cancelled = false;
+      _paused = false;
+      _budgetExhausted = false; // 本轮运行中重新判定
+      notifyListeners();
+      try {
+        final settings = await repositories.settings();
+        final workers = settings.concurrency.clamp(1, 16);
+        await Future.wait([for (var i = 0; i < workers; i++) _worker()]);
+        if (_cancelled) {
+          await _resetQueue();
         }
-        final id = _queue.removeAt(0);
+        // 达限标志收尾重算:预算仍达限 且 队列仍有词才为真
+        _budgetExhausted = false;
+        if (!_cancelled && _queue.isNotEmpty) {
+          _budgetExhausted = await budget.exhausted();
+        }
+      } finally {
+        _running = false;
+        if (!_cancelled) await _refreshBudget();
+        notifyListeners();
+      }
+    } while (_dispatchQueued && !_cancelled && !_paused);
+  }
+
+  /// 单个 worker:预约预算 → 取词 → 生成 → 结算;暂停/取消/达限即退出。
+  Future<void> _worker() async {
+    while (!_cancelled && !_paused) {
+      // 预算门槛(§6.2):达限即退出,剩余排队词保留(标志由 _run 收尾重算)
+      if (!await budget.reserve()) {
+        return;
+      }
+      var reserved = true;
+      try {
+        if (_cancelled || _paused) {
+          await budget.release();
+          return;
+        }
+        final id = _takeNext();
+        if (id == null) {
+          await budget.release(); // 队列已空,归还预约
+          return;
+        }
         final task = _taskFor(id)!;
         task.status = WordStatus.generating;
         notifyListeners();
@@ -156,23 +216,28 @@ class GenerationTaskController extends ChangeNotifier {
           task.status = WordStatus.notGenerated;
           task.error = null;
           await repositories.setWordStatus(id, WordStatus.notGenerated);
+          await budget.release();
           continue;
         }
         task.status = outcome.failed ? WordStatus.failed : WordStatus.done;
         task.error = outcome.error;
-        if (!outcome.failed) {
-          await budget.record(1); // 成功生成一词才计入当日预算
+        if (outcome.failed) {
+          await budget.release(); // 失败不耗预算
+          reserved = false;
         }
+        await _refreshBudget();
         notifyListeners();
+      } catch (_) {
+        // 结算异常:归还预约,避免预算泄漏
+        if (reserved) await budget.release();
+        rethrow;
       }
-      if (_cancelled) {
-        await _resetQueue();
-      }
-    } finally {
-      _running = false;
-      if (!_cancelled) await _refreshBudget(); // 末词后的用量同步给 UI
-      notifyListeners();
     }
+  }
+
+  int? _takeNext() {
+    if (_queue.isEmpty) return null;
+    return _queue.removeAt(0);
   }
 
   /// 取消时:剩余排队词回未生成

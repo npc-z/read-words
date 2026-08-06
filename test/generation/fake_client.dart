@@ -7,13 +7,15 @@ import 'package:read_words/generation/prompt.dart';
 
 /// 可控的假客户端:返回合法 9 句内容;可配置抛错、内容覆盖、gate 阻塞。
 class FakeClient extends DeepSeekClient {
-  FakeClient({this.gate}) : super(apiKey: 'fake');
+  FakeClient({Completer<void>? gate}) : super(apiKey: 'fake') {
+    if (gate != null) gates.add(gate);
+  }
 
   String? requestedWord;
   int callCount = 0;
 
-  /// 若非空,第一次调用会等待 gate 完成(用于观察中间态)
-  Completer<void>? gate;
+  /// 每次调用按序消费的 gate 列表;为空不阻塞(用于观察并发中间态)
+  final List<Completer<void>> gates = [];
 
   /// 待返回的原始响应;null 表示抛错
   String? rawResponse;
@@ -28,9 +30,8 @@ class FakeClient extends DeepSeekClient {
   }) async {
     callCount++;
     requestedWord = word;
-    final g = gate;
-    if (g != null) {
-      gate = null;
+    if (gates.isNotEmpty) {
+      final g = gates.removeAt(0);
       await g.future;
     }
     if (errorToThrow != null) throw errorToThrow!;

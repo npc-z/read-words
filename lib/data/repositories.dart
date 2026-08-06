@@ -241,6 +241,26 @@ class Repositories {
     );
   }
 
+  /// 预算:原子预约——事务内查限,未达限则 +1 并返回 true(§6.2 硬上限)
+  Future<bool> reserveBudget(String day, int limit) {
+    return db.transaction(() async {
+      final used = await budgetUsedOn(day);
+      if (used >= limit) return false;
+      await db.into(db.budgetDays).insertOnConflictUpdate(
+            BudgetDaysCompanion.insert(day: day, count: Value(used + 1)),
+          );
+      return true;
+    });
+  }
+
+  /// 预算:释放预约(失败/取消的词),下限 0
+  Future<void> releaseBudget(String day) async {
+    await db.customStatement(
+      'UPDATE budget_days SET count = MAX(count - 1, 0) WHERE day = ?',
+      [day],
+    );
+  }
+
   static T _enumOr<T extends Enum>(List<T> values, String? name, T fallback) {
     for (final v in values) {
       if (v.name == name) return v;

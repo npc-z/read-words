@@ -67,8 +67,9 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
   }
 
   String _badge(GenerationTaskController c) {
-    if (c.running) return '生成中';
     if (c.cancelled) return '已取消';
+    if (c.paused) return '已暂停';
+    if (c.running) return '生成中';
     if (c.budgetExhausted) return '已达今日预算';
     return '已完成';
   }
@@ -91,11 +92,24 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
         title: const Text('生成任务'),
         actions: [
           if (controller != null &&
-              (controller.running || controller.budgetExhausted))
+              (controller.running ||
+                  controller.paused ||
+                  controller.budgetExhausted)) ...[
+            if (controller.paused)
+              TextButton(
+                onPressed: controller.resume,
+                child: const Text('继续'),
+              ),
+            if (controller.running && !controller.paused)
+              TextButton(
+                onPressed: controller.pause,
+                child: const Text('暂停'),
+              ),
             TextButton(
               onPressed: controller.cancel,
               child: const Text('取消'),
             ),
+          ],
         ],
       ),
       body: controller == null

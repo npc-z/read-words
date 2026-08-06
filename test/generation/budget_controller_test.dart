@@ -102,7 +102,7 @@ void main() {
 
   test('start when budget already exhausted generates nothing', () async {
     await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
-    await ledger().record(1);
+    await repo.addBudgetUse(BudgetLedger.dayOf(now), 1);
     await seed(['run', 'walk']);
     final c = await controller();
     await c.start();
@@ -133,7 +133,7 @@ void main() {
 
   test('immediate generation is not budget-constrained', () async {
     await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
-    await ledger().record(1); // 已达限
+    await repo.addBudgetUse(BudgetLedger.dayOf(now), 1); // 已达限
     await seed(['run']);
 
     // 点开未生成词的即时生成:直接调用 generateWord,不经预算账本

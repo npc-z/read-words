@@ -11,6 +11,7 @@ import 'package:read_words/generation/budget.dart';
 void main() {
   // 重启保留测试顺序重开同一文件 DB,误报可静默
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   late AppDatabase db;
   late Repositories repo;
   late DateTime now;
@@ -32,33 +33,41 @@ void main() {
     expect((await ledger().state()).limit, 20);
   });
 
-  test('used starts at 0 and accumulates records on the same day', () async {
+  test('reserve succeeds until limit, then fails (hard cap)', () async {
+    await repo.saveSettings(const AppSettings(dailyReadingX: 2, budgetMultiple: 2));
     final l = ledger();
     expect((await l.state()).used, 0);
 
-    await l.record(2);
-    await l.record(3);
-    final s = await l.state();
-    expect(s.used, 5);
-    expect(s.exhausted, isFalse);
+    for (var i = 0; i < 4; i++) {
+      expect(await l.reserve(), isTrue);
+    }
+    expect((await l.state()).used, 4);
+    expect((await l.state()).exhausted, isTrue);
+
+    expect(await l.reserve(), isFalse);
+    expect((await l.state()).used, 4); // 超限预约不记账
   });
 
-  test('exhausted when used reaches limit', () async {
+  test('release frees a slot and never goes below zero', () async {
     await repo.saveSettings(const AppSettings(dailyReadingX: 2, budgetMultiple: 2));
     final l = ledger();
-    await l.record(3);
-    expect((await l.state()).exhausted, isFalse);
+    await l.reserve();
+    await l.reserve();
 
-    await l.record(1);
+    await l.release();
     final s = await l.state();
-    expect(s.used, 4);
-    expect(s.exhausted, isTrue);
+    expect(s.used, 1);
+    expect(await l.reserve(), isTrue); // 释放后可再预约
+
+    await l.release();
+    await l.release();
+    expect((await l.state()).used, 0);
   });
 
   test('natural day rollover resets used (local timezone)', () async {
     await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
     final l = ledger();
-    await l.record(1);
+    await l.reserve();
     expect((await l.state()).exhausted, isTrue);
 
     // 次日(本地时区)重置
@@ -74,7 +83,7 @@ void main() {
     try {
       final db1 = AppDatabase(NativeDatabase(file));
       final repo1 = Repositories(db1);
-      await BudgetLedger(repositories: repo1, now: () => now).record(4);
+      await repo1.addBudgetUse(BudgetLedger.dayOf(now), 4);
       await db1.close();
 
       final db2 = AppDatabase(NativeDatabase(file));

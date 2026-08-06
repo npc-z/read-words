@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/data/settings.dart';
 import 'package:read_words/generation/deepseek_client.dart';
 import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/generation/task_controller.dart';
@@ -72,6 +73,7 @@ void main() {
   });
 
   test('status transitions queued -> generating -> done are visible', () async {
+    await repo.saveSettings(const AppSettings(concurrency: 1));
     final gate = Completer<void>();
     client = FakeClient(gate: gate);
     service = GenerationService(client: client, repositories: repo);
@@ -174,6 +176,7 @@ void main() {
   });
 
   test('cancel keeps finished words, resets remaining to notGenerated', () async {
+    await repo.saveSettings(const AppSettings(concurrency: 1));
     final gate = Completer<void>();
     client = FakeClient(gate: gate);
     service = GenerationService(client: client, repositories: repo);

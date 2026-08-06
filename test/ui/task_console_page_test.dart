@@ -69,6 +69,7 @@ void main() {
   });
 
   testWidgets('cancel keeps finished words and resets remaining to notGenerated', (tester) async {
+    await repo.saveSettings(const AppSettings(concurrency: 1));
     final gate = Completer<void>();
     client = FakeClient(gate: gate);
     service = GenerationService(client: client, repositories: repo);
@@ -165,5 +166,44 @@ void main() {
 
     expect(find.text('已达今日预算,次日重置后可继续'), findsOneWidget);
     expect(find.text('已达今日预算'), findsOneWidget); // 仍达限
+  });
+
+  testWidgets('pause stops dispatch, resume continues, badge reflects state', (tester) async {
+    await repo.saveSettings(const AppSettings(concurrency: 2));
+    final g1 = Completer<void>();
+    final g2 = Completer<void>();
+    client.gates
+      ..add(g1)
+      ..add(g2);
+    await seed(['run', 'walk', 'jump']);
+
+    await tester.pumpWidget(MaterialApp(
+      home: TaskConsolePage(wordSet: wordSet, repositories: repo, service: service),
+    ));
+    // 在飞词有 spinner 动画,用定长 pump 而非 pumpAndSettle
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    await tester.tap(find.text('暂停'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.widgetWithText(Chip, '已暂停'), findsOneWidget);
+    expect(find.text('继续'), findsOneWidget);
+    expect(find.text('取消'), findsOneWidget);
+
+    // 放行在飞词:结算完成,排队词保持 queued
+    g1.complete();
+    g2.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('排队中'), findsOneWidget); // jump 仍在排队
+
+    // 继续:全部完成
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(Chip, '已完成'), findsOneWidget);
+    expect(find.textContaining('成功 3'), findsOneWidget);
+    expect((await repo.wordsInSet(wordSet.id))
+        .every((w) => w.status == WordStatus.done.name), isTrue);
   });
 }
