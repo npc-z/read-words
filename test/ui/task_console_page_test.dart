@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/data/settings.dart';
+import 'package:read_words/generation/budget.dart';
 import 'package:read_words/generation/deepseek_client.dart';
 import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/ui/task_console_page.dart';
@@ -106,5 +108,62 @@ void main() {
 
     expect(find.text('生成任务'), findsOneWidget);
     expect(find.textContaining('成功 0'), findsOneWidget);
+  });
+
+  testWidgets('budget exhaustion shows 已达今日预算 and continue resumes next day', (tester) async {
+    await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
+    await seed(['run', 'walk']);
+    var now = DateTime(2026, 8, 6, 10, 30);
+    final budget = BudgetLedger(repositories: repo, now: () => now);
+
+    await tester.pumpWidget(MaterialApp(
+      home: TaskConsolePage(
+        wordSet: wordSet,
+        repositories: repo,
+        service: service,
+        budget: budget,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 达限:徽章 + 预算条 + 继续按钮;run 完成,walk 保留排队
+    expect(find.text('已达今日预算'), findsOneWidget);
+    expect(find.text('继续下一批次'), findsOneWidget);
+    expect(find.text('今日预算 1/1'), findsOneWidget);
+    expect(find.textContaining('成功 1'), findsOneWidget);
+    expect(find.text('walk'), findsOneWidget);
+    expect(find.text('排队中'), findsOneWidget);
+
+    // 次日自然日重置后继续
+    now = DateTime(2026, 8, 7, 8, 0);
+    await tester.tap(find.text('继续下一批次'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(Chip, '已完成'), findsOneWidget);
+    expect(find.textContaining('成功 2'), findsOneWidget);
+    expect(find.text('已达今日预算'), findsNothing);
+  });
+
+  testWidgets('continue on the same day shows a snackbar instead of silent no-op', (tester) async {
+    await repo.saveSettings(const AppSettings(dailyReadingX: 1, budgetMultiple: 1));
+    await seed(['run', 'walk']);
+    var now = DateTime(2026, 8, 6, 10, 30);
+    final budget = BudgetLedger(repositories: repo, now: () => now);
+
+    await tester.pumpWidget(MaterialApp(
+      home: TaskConsolePage(
+        wordSet: wordSet,
+        repositories: repo,
+        service: service,
+        budget: budget,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('继续下一批次'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已达今日预算,次日重置后可继续'), findsOneWidget);
+    expect(find.text('已达今日预算'), findsOneWidget); // 仍达限
   });
 }

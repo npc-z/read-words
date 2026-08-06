@@ -6,10 +6,10 @@ import 'package:read_words/data/app_database.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 void main() {
-  test('database schema opens at v2', () async {
+  test('database schema opens at v3', () async {
     final db = AppDatabase(NativeDatabase.memory());
     await db.customSelect('SELECT 1 FROM sqlite_master LIMIT 1').get();
-    expect(db.schemaVersion, 2);
+    expect(db.schemaVersion, 3);
     await db.close();
   });
 
@@ -47,7 +47,34 @@ void main() {
         .map((r) => r.data['name'])
         .toList();
     expect(pk, ['key']);
-    expect(db.schemaVersion, 2);
+    expect(db.schemaVersion, 3);
+    await db.close();
+    file.deleteSync();
+    dir.deleteSync();
+  });
+
+  test('migrates v2 database: budget_days table created', () async {
+    final dir = await Directory.systemTemp.createTemp('drift-migrate');
+    final file = File('${dir.path}/migrate_test.db');
+    final raw = sqlite3.sqlite3.open(file.path);
+    raw.execute(
+      'CREATE TABLE settings_table ("key" TEXT NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("key"));',
+    );
+    raw.execute('PRAGMA user_version = 2;');
+    raw.close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    await db.customSelect('SELECT 1 FROM budget_days LIMIT 1').get();
+
+    final tableInfo = await db
+        .customSelect('PRAGMA table_info(budget_days)')
+        .get();
+    final pk = tableInfo
+        .where((r) => r.data['pk'] == 1)
+        .map((r) => r.data['name'])
+        .toList();
+    expect(pk, ['day']);
+    expect(db.schemaVersion, 3);
     await db.close();
     file.deleteSync();
     dir.deleteSync();

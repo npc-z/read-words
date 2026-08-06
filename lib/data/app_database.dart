@@ -109,6 +109,17 @@ class SettingsTable extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+/// 预算账本(§6.2):按本地自然日统计后台生成词数
+@DataClassName('BudgetDay')
+class BudgetDays extends Table {
+  /// 自然日,格式 'yyyy-MM-dd'(本地时区)
+  TextColumn get day => text()();
+  IntColumn get count => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {day};
+}
+
 @DriftDatabase(tables: [
   WordSets,
   Words,
@@ -117,12 +128,13 @@ class SettingsTable extends Table {
   ReviewStatesTable,
   PendingQueues,
   SettingsTable,
+  BudgetDays,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -131,6 +143,10 @@ class AppDatabase extends _$AppDatabase {
             // v1 的 settings_table 无主键;settings 尚无任何数据,重建即可
             await m.drop(settingsTable);
             await m.create(settingsTable);
+          }
+          if (from < 3) {
+            // v2 无预算表,新建即可
+            await m.create(budgetDays);
           }
         },
       );

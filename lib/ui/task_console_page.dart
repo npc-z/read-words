@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/generation/budget.dart';
 import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/generation/task_controller.dart';
 
@@ -14,6 +15,7 @@ class TaskConsolePage extends StatefulWidget {
     required this.wordSet,
     required this.repositories,
     this.service,
+    this.budget,
   });
 
   final WordSet wordSet;
@@ -21,6 +23,9 @@ class TaskConsolePage extends StatefulWidget {
 
   /// 注入用;为空时按设置构造默认服务
   final GenerationService? service;
+
+  /// 预算账本(§6.2);为空时用默认时钟构造
+  final BudgetLedger? budget;
 
   @override
   State<TaskConsolePage> createState() => _TaskConsolePageState();
@@ -43,6 +48,7 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
       wordSetId: widget.wordSet.id,
       repositories: widget.repositories,
       service: service,
+      budget: widget.budget,
     );
     controller.addListener(_onChanged);
     setState(() => _controller = controller);
@@ -63,7 +69,18 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
   String _badge(GenerationTaskController c) {
     if (c.running) return '生成中';
     if (c.cancelled) return '已取消';
+    if (c.budgetExhausted) return '已达今日预算';
     return '已完成';
+  }
+
+  Future<void> _continueBatch(GenerationTaskController c) async {
+    await c.continueBatch();
+    if (c.budgetExhausted && mounted) {
+      // 同日仍达限:给用户反馈而非静默无操作
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已达今日预算,次日重置后可继续')),
+      );
+    }
   }
 
   @override
@@ -73,7 +90,8 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
       appBar: AppBar(
         title: const Text('生成任务'),
         actions: [
-          if (controller != null && controller.running)
+          if (controller != null &&
+              (controller.running || controller.budgetExhausted))
             TextButton(
               onPressed: controller.cancel,
               child: const Text('取消'),
@@ -84,7 +102,11 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _ProgressCard(controller: controller, badge: _badge(controller)),
+                _ProgressCard(
+                  controller: controller,
+                  badge: _badge(controller),
+                  onContinue: () => _continueBatch(controller),
+                ),
                 Expanded(child: _TaskList(controller: controller)),
               ],
             ),
@@ -93,10 +115,15 @@ class _TaskConsolePageState extends State<TaskConsolePage> {
 }
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.controller, required this.badge});
+  const _ProgressCard({
+    required this.controller,
+    required this.badge,
+    required this.onContinue,
+  });
 
   final GenerationTaskController controller;
   final String badge;
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +149,50 @@ class _ProgressCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            _BudgetStrip(controller: controller, onContinue: onContinue),
+            const SizedBox(height: 12),
             _SegmentedBar(controller: controller),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 预算提示条(§6.2):今日预算 used/limit;达限显示"继续下一批次"。
+class _BudgetStrip extends StatelessWidget {
+  const _BudgetStrip({required this.controller, required this.onContinue});
+
+  final GenerationTaskController controller;
+
+  /// 点击"继续下一批次";同日仍达限时由页面给出提示
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = controller.budgetState;
+    if (state == null) return const SizedBox.shrink();
+    final ratio = (state.used / state.limit).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '今日预算 ${state.used}/${state.limit}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(value: ratio, minHeight: 6),
+        ),
+        if (controller.budgetExhausted) ...[
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            onPressed: onContinue,
+            child: const Text('继续下一批次'),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -197,7 +264,15 @@ class _TaskList extends StatelessWidget {
               ? IconButton(
                   tooltip: '重试',
                   icon: const Icon(Icons.refresh),
-                  onPressed: () => controller.retry(t.wordId),
+                  onPressed: () {
+                    if (controller.budgetExhausted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已达今日预算,次日重置后可重试')),
+                      );
+                      return;
+                    }
+                    controller.retry(t.wordId);
+                  },
                 )
               : null,
         );

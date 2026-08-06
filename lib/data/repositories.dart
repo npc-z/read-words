@@ -224,6 +224,23 @@ class Repositories {
     });
   }
 
+  /// 预算:某自然日已用额度(§6.2);无记录为 0
+  Future<int> budgetUsedOn(String day) async {
+    final row = await (db.select(db.budgetDays)
+          ..where((r) => r.day.equals(day)))
+        .getSingleOrNull();
+    return row?.count ?? 0;
+  }
+
+  /// 预算:原子累加当日额度(§6.2);并发批次间不丢更新
+  Future<void> addBudgetUse(String day, int count) async {
+    await db.customStatement(
+      'INSERT INTO budget_days (day, count) VALUES (?, ?) '
+      'ON CONFLICT(day) DO UPDATE SET count = count + excluded.count',
+      [day, count],
+    );
+  }
+
   static T _enumOr<T extends Enum>(List<T> values, String? name, T fallback) {
     for (final v in values) {
       if (v.name == name) return v;

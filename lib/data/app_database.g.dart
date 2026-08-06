@@ -2523,6 +2523,213 @@ class SettingsTableCompanion extends UpdateCompanion<SettingsTableData> {
   }
 }
 
+class $BudgetDaysTable extends BudgetDays
+    with TableInfo<$BudgetDaysTable, BudgetDay> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetDaysTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<String> day = GeneratedColumn<String>(
+    'day',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<int> count = GeneratedColumn<int>(
+    'count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [day, count];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budget_days';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BudgetDay> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('day')) {
+      context.handle(
+        _dayMeta,
+        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+        _countMeta,
+        count.isAcceptableOrUnknown(data['count']!, _countMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {day};
+  @override
+  BudgetDay map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BudgetDay(
+      day: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}day'],
+      )!,
+      count: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}count'],
+      )!,
+    );
+  }
+
+  @override
+  $BudgetDaysTable createAlias(String alias) {
+    return $BudgetDaysTable(attachedDatabase, alias);
+  }
+}
+
+class BudgetDay extends DataClass implements Insertable<BudgetDay> {
+  /// 自然日,格式 'yyyy-MM-dd'(本地时区)
+  final String day;
+  final int count;
+  const BudgetDay({required this.day, required this.count});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['day'] = Variable<String>(day);
+    map['count'] = Variable<int>(count);
+    return map;
+  }
+
+  BudgetDaysCompanion toCompanion(bool nullToAbsent) {
+    return BudgetDaysCompanion(day: Value(day), count: Value(count));
+  }
+
+  factory BudgetDay.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BudgetDay(
+      day: serializer.fromJson<String>(json['day']),
+      count: serializer.fromJson<int>(json['count']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'day': serializer.toJson<String>(day),
+      'count': serializer.toJson<int>(count),
+    };
+  }
+
+  BudgetDay copyWith({String? day, int? count}) =>
+      BudgetDay(day: day ?? this.day, count: count ?? this.count);
+  BudgetDay copyWithCompanion(BudgetDaysCompanion data) {
+    return BudgetDay(
+      day: data.day.present ? data.day.value : this.day,
+      count: data.count.present ? data.count.value : this.count,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetDay(')
+          ..write('day: $day, ')
+          ..write('count: $count')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(day, count);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BudgetDay &&
+          other.day == this.day &&
+          other.count == this.count);
+}
+
+class BudgetDaysCompanion extends UpdateCompanion<BudgetDay> {
+  final Value<String> day;
+  final Value<int> count;
+  final Value<int> rowid;
+  const BudgetDaysCompanion({
+    this.day = const Value.absent(),
+    this.count = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BudgetDaysCompanion.insert({
+    required String day,
+    this.count = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : day = Value(day);
+  static Insertable<BudgetDay> custom({
+    Expression<String>? day,
+    Expression<int>? count,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (day != null) 'day': day,
+      if (count != null) 'count': count,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BudgetDaysCompanion copyWith({
+    Value<String>? day,
+    Value<int>? count,
+    Value<int>? rowid,
+  }) {
+    return BudgetDaysCompanion(
+      day: day ?? this.day,
+      count: count ?? this.count,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (day.present) {
+      map['day'] = Variable<String>(day.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<int>(count.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetDaysCompanion(')
+          ..write('day: $day, ')
+          ..write('count: $count, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2534,6 +2741,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ReviewStatesTableTable(this);
   late final $PendingQueuesTable pendingQueues = $PendingQueuesTable(this);
   late final $SettingsTableTable settingsTable = $SettingsTableTable(this);
+  late final $BudgetDaysTable budgetDays = $BudgetDaysTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2546,6 +2754,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reviewStatesTable,
     pendingQueues,
     settingsTable,
+    budgetDays,
   ];
 }
 
@@ -4810,6 +5019,142 @@ typedef $$SettingsTableTableProcessedTableManager =
       SettingsTableData,
       PrefetchHooks Function()
     >;
+typedef $$BudgetDaysTableCreateCompanionBuilder =
+    BudgetDaysCompanion Function({
+      required String day,
+      Value<int> count,
+      Value<int> rowid,
+    });
+typedef $$BudgetDaysTableUpdateCompanionBuilder =
+    BudgetDaysCompanion Function({
+      Value<String> day,
+      Value<int> count,
+      Value<int> rowid,
+    });
+
+class $$BudgetDaysTableFilterComposer
+    extends Composer<_$AppDatabase, $BudgetDaysTable> {
+  $$BudgetDaysTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BudgetDaysTableOrderingComposer
+    extends Composer<_$AppDatabase, $BudgetDaysTable> {
+  $$BudgetDaysTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BudgetDaysTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BudgetDaysTable> {
+  $$BudgetDaysTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+
+  GeneratedColumn<int> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+}
+
+class $$BudgetDaysTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BudgetDaysTable,
+          BudgetDay,
+          $$BudgetDaysTableFilterComposer,
+          $$BudgetDaysTableOrderingComposer,
+          $$BudgetDaysTableAnnotationComposer,
+          $$BudgetDaysTableCreateCompanionBuilder,
+          $$BudgetDaysTableUpdateCompanionBuilder,
+          (
+            BudgetDay,
+            BaseReferences<_$AppDatabase, $BudgetDaysTable, BudgetDay>,
+          ),
+          BudgetDay,
+          PrefetchHooks Function()
+        > {
+  $$BudgetDaysTableTableManager(_$AppDatabase db, $BudgetDaysTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BudgetDaysTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BudgetDaysTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BudgetDaysTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> day = const Value.absent(),
+                Value<int> count = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetDaysCompanion(day: day, count: count, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String day,
+                Value<int> count = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetDaysCompanion.insert(
+                day: day,
+                count: count,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BudgetDaysTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BudgetDaysTable,
+      BudgetDay,
+      $$BudgetDaysTableFilterComposer,
+      $$BudgetDaysTableOrderingComposer,
+      $$BudgetDaysTableAnnotationComposer,
+      $$BudgetDaysTableCreateCompanionBuilder,
+      $$BudgetDaysTableUpdateCompanionBuilder,
+      (BudgetDay, BaseReferences<_$AppDatabase, $BudgetDaysTable, BudgetDay>),
+      BudgetDay,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4828,4 +5173,6 @@ class $AppDatabaseManager {
       $$PendingQueuesTableTableManager(_db, _db.pendingQueues);
   $$SettingsTableTableTableManager get settingsTable =>
       $$SettingsTableTableTableManager(_db, _db.settingsTable);
+  $$BudgetDaysTableTableManager get budgetDays =>
+      $$BudgetDaysTableTableManager(_db, _db.budgetDays);
 }
