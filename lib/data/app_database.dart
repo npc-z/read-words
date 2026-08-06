@@ -122,5 +122,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v1 的 settings_table 无主键;settings 尚无任何数据,重建即可
+            await m.drop(settingsTable);
+            await m.create(settingsTable);
+          }
+        },
+      );
 }
