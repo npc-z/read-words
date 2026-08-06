@@ -8,3 +8,48 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+
+# Flutter/Dart/Pub related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+**/doc/api/
+**/generated_plugin_registrant.dart
+coverage/
+flutter_*.png
+
+# Android related
+.gradle/
+**/android/**/gradle-wrapper.jar
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/key.properties
+**/android/**/GeneratedPluginRegistrant.java
+*.jks
+
+# IntelliJ related
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Python related
+__pycache__/
+*.py[cod]
+.venv/
+
+# Playwright related
+test-results/
+playwright-report/
+blob-report/
+
+# Miscellaneous
+*.log
+*.swp
+.DS_Store
+.config/
