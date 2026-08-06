@@ -54,17 +54,6 @@ class GenerationService {
         dictionaryContext,
       );
 
-      // §4.2 硬性校验 + §6.4 软校验
-      final hard = validateContent(result.content, expectWord: word.headword);
-      if (!hard.ok) {
-        await repositories.setWordStatus(wordId, WordStatus.failed);
-        return GenerationOutcome(
-          word: word.headword,
-          failed: true,
-          error: hard.errors.join('; '),
-        );
-      }
-
       await repositories.saveMaterial(
         wordId,
         MaterialData(
@@ -94,9 +83,12 @@ class GenerationService {
   }
 
   /// 按 §6.3 重试:网络错误指数退避重试 3 次(1s/4s/16s,共 4 次尝试);
-  /// 校验错误重试 2 次(共 3 次尝试,属 prompt 质量问题退避无用)。
+  /// 校验错误重试 2 次(共 3 次尝试)——结构错误直接重试,§4.2 内容契约
+  /// 错误带失败清单反馈重试(让模型按反馈修正);最终仍失败抛异常。
   Future<dynamic> _generateWithRetries(String word, String? context) async {
-    GenerationApiException? lastTransient;
+    GenerationApiException? lastTransientError;
+    var lastAttemptWasTransient = false;
+    String? feedback;
     const transientDelays = [
       Duration(seconds: 1),
       Duration(seconds: 4),
@@ -106,30 +98,46 @@ class GenerationService {
     const transientAttempts = 4; // 初始 1 + 重试 3
     for (var attempt = 0; attempt < transientAttempts; attempt++) {
       if (attempt > 0) {
-        await _delay(transientDelays[attempt - 1]);
+        // 网络错误退避;校验重试不等待
+        await _delay(
+          lastAttemptWasTransient ? transientDelays[attempt - 1] : Duration.zero,
+        );
       }
       try {
-        return await client.generateWord(
+        final result = await client.generateWord(
           word: word,
           proficiency: proficiency,
           dictionaryContext: context,
+          feedback: feedback,
         );
+        final hard = validateContent(result.content, expectWord: word);
+        if (!hard.ok) {
+          feedback = hard.errors.join('; ');
+          lastAttemptWasTransient = false;
+          if (attempt < validationAttempts - 1) {
+            continue; // 带反馈重试
+          }
+          throw GenerationApiException(
+            GenerationErrorKind.validation,
+            hard.errors.join('; '),
+          );
+        }
+        return result;
       } on GenerationApiException catch (e) {
         if (e.kind == GenerationErrorKind.transient) {
-          lastTransient = e;
+          lastAttemptWasTransient = true;
+          lastTransientError = e;
           continue; // 网络错误:最多 4 次尝试
         }
-        if (e.kind == GenerationErrorKind.validation) {
-          if (attempt < validationAttempts - 1) {
-            await _delay(Duration.zero);
-            continue; // 校验错误:最多 3 次尝试
-          }
-          rethrow;
+        lastAttemptWasTransient = false;
+        if (e.kind == GenerationErrorKind.validation &&
+            attempt < validationAttempts - 1) {
+          continue; // 结构校验错误:最多 3 次尝试
         }
-        rethrow; // permanent
+        rethrow; // permanent / 校验用尽
       }
     }
-    throw lastTransient!;
+    throw lastTransientError!;
   }
 
   /// 批量生成(§6:队列消费端)。逐词生成,失败不阻塞。

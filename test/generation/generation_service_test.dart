@@ -32,6 +32,26 @@ void main() {
     return (await repo.wordsInSet(setId)).first.id;
   }
 
+  /// 模拟模型常见错误输出:6 个义项 × 每层 1 句 = 18 句(每层 6 句)
+  final badRunContent = {
+    'word': 'run',
+    'phonetic': {'uk': '/rʌn/', 'us': '/rʌn/'},
+    'senses': [
+      for (var s = 0; s < 6; s++)
+        {
+          'pos': 'v.',
+          'meaning': 'm$s',
+          'examples': [
+            {'level': 1, 'en': 'a$s', 'zh': 'z$s'},
+            {'level': 2, 'en': 'b$s', 'zh': 'z$s'},
+            {'level': 3, 'en': 'c$s', 'zh': 'z$s'},
+          ],
+        },
+    ],
+    'phrases': [],
+    'unclassified_examples': [],
+  };
+
   test('generates and persists material, status becomes done', () async {
     final wordId = await addWord('run');
     final o = await service.generateWord(wordId);
@@ -146,29 +166,33 @@ void main() {
   });
 
   test(
-    'invalid content (not 9 sentences) marked failed without retry loop',
+    'invalid content (not 9 sentences) retried with feedback then marked failed',
     () async {
-      client.contentOverride = {
-        'word': 'run',
-        'senses': [
-          {
-            'pos': 'v.',
-            'meaning': 'm',
-            'examples': [
-              {'level': 1, 'en': 'a1', 'zh': 'z1'},
-            ],
-          },
-        ],
-        'phrases': [],
-        'unclassified_examples': [],
-      };
+      client.contentByCall.addAll([badRunContent, badRunContent, badRunContent]);
       final wordId = await addWord('run');
       final o = await service.generateWord(wordId);
 
       expect(o.failed, isTrue);
       expect(o.error, contains('L1'));
+      expect(client.callCount, 3);
+      expect(client.lastFeedback, contains('L1'));
+      final w = await repo.wordById(wordId);
+      expect(w!.status, WordStatus.failed.name);
     },
   );
+
+  test('content validation failure retried with feedback then succeeds', () async {
+    // 第一次:每层 6 句(6 义项 × 每层 1 句)→ 校验失败;第二次默认合法 9 句
+    client.contentByCall.addAll([badRunContent, null]);
+    final wordId = await addWord('run');
+    final o = await service.generateWord(wordId);
+
+    expect(o.failed, isFalse);
+    expect(client.callCount, 2);
+    expect(client.lastFeedback, contains('L1 例句数应为 3'));
+    final w = await repo.wordById(wordId);
+    expect(w!.status, WordStatus.done.name);
+  });
 
   test('batch generation continues past failures', () async {
     final setId = await repo.createWordSet('test');

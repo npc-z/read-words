@@ -23,6 +23,13 @@ class FakeClient extends DeepSeekClient {
   /// 每次调用按序消费的 gate 列表;为空不阻塞(用于观察并发中间态)
   final List<Completer<void>> gates = [];
 
+  /// 每次调用按序消费的内容覆盖;为空回退 [contentOverride](用于校验失败后
+  /// 返回修正内容的场景)
+  final List<Map<String, dynamic>?> contentByCall = [];
+
+  /// 最近一次收到的校验反馈(§6.3 反馈式重试)
+  String? lastFeedback;
+
   /// 待返回的原始响应;null 表示抛错
   String? rawResponse;
   GenerationApiException? errorToThrow;
@@ -33,16 +40,23 @@ class FakeClient extends DeepSeekClient {
     required String word,
     required Proficiency proficiency,
     String? dictionaryContext,
+    String? feedback,
   }) async {
     callCount++;
     requestedWord = word;
+    lastFeedback = feedback;
     callOrder.add(word);
     if (gates.isNotEmpty) {
       final g = gates.removeAt(0);
       await g.future;
     }
     if (errorToThrow != null) throw errorToThrow!;
+    Map<String, dynamic>? override;
+    if (contentByCall.isNotEmpty) {
+      override = contentByCall.removeAt(0);
+    }
     final json =
+        override ??
         contentOverride ??
         {
           'word': word,

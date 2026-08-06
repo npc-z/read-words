@@ -15,14 +15,25 @@ enum Proficiency {
 }
 
 /// 组装生成 prompt(§4.4:词频范围 + 基准复杂度 + 释义风格作为参数写入 prompt)。
+/// [feedback] 为上次输出的校验失败清单(§6.3 反馈式重试),追加到 prompt 末尾。
 String buildGenerationPrompt({
   required String word,
   required Proficiency proficiency,
   String? dictionaryContext,
+  String? feedback,
 }) {
   final context = dictionaryContext == null || dictionaryContext.isEmpty
       ? '无'
       : dictionaryContext;
+  final feedbackSection = feedback == null || feedback.isEmpty
+      ? ''
+      : '''
+
+## 上次输出校验失败(必须修正)
+
+$feedback
+
+请根据以上错误清单修正后,重新输出完整的 JSON(结构不变,仍是全部字段)。''';
   return '''
 你是一位专业的英语学习内容生成器。为单词 "$word" 生成分层学习素材。目标学习者的英语水平:${proficiency.label}。
 
@@ -52,7 +63,7 @@ $context
 
 ## 硬性规则
 
-1. **例句总数必须为 9 句**:level 1 恰好 3 句,level 2 恰好 3 句,level 3 恰好 3 句。
+1. **例句总数必须为 9 句(全词合计)**:level 1 恰好 3 句、level 2 恰好 3 句、level 3 恰好 3 句——这是全局统计,不是每个义项各 3 句;若义项较多,部分义项可分到更少例句。
 2. 例句按义项分布:主要义项分到更多例句;至少 7 句必须挂在 senses 的 examples 里,最多 2 句(习语化用法)可放入 unclassified_examples。
 3. 例句是释义的延续:每条例句的语义必须属于它所在的义项。
 4. 词性覆盖:单词有几个常用词性就生成几个 sense(如 run 有 v./n.)。
@@ -71,5 +82,5 @@ $context
 ${proficiency.definitionStyle}
 
 只输出 JSON,不要输出任何其他文字、注释或 markdown 代码块标记。
-''';
+$feedbackSection''';
 }

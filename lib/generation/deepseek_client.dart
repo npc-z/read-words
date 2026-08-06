@@ -63,15 +63,18 @@ class DeepSeekClient {
   final Dio _dio;
 
   /// 生成单个单词的学习内容(§4)。非流式单次调用。
+  /// [feedback] 为上次输出校验失败清单(§6.3 反馈式重试),追加进 prompt。
   Future<GenerationResult> generateWord({
     required String word,
     required Proficiency proficiency,
     String? dictionaryContext,
+    String? feedback,
   }) async {
     final prompt = buildGenerationPrompt(
       word: word,
       proficiency: proficiency,
       dictionaryContext: dictionaryContext,
+      feedback: feedback,
     );
     final text = await _chat(prompt);
     final json = _extractJson(text);
