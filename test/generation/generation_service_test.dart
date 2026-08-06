@@ -76,6 +76,38 @@ void main() {
     expect((await repo.wordById(wordId))!.status, WordStatus.done.name);
   });
 
+  test('content validation failure marks word as failed', () async {
+    // 模拟真实场景:模型返回 L1×4/L2×3/L3×2,不满足每层 3 句(§4.2)
+    client.contentOverride = {
+      'word': 'good',
+      'phonetic': {'uk': '/g/', 'us': '/g/'},
+      'senses': [
+        {
+          'pos': 'adj.',
+          'meaning': 'm',
+          'examples': [
+            {'level': 1, 'en': 'a1', 'zh': 'z1'},
+            {'level': 1, 'en': 'a2', 'zh': 'z2'},
+            {'level': 1, 'en': 'a3', 'zh': 'z3'},
+            {'level': 1, 'en': 'a4', 'zh': 'z4'},
+            {'level': 2, 'en': 'b1', 'zh': 'z5'},
+            {'level': 2, 'en': 'b2', 'zh': 'z6'},
+            {'level': 3, 'en': 'c1', 'zh': 'z7'},
+            {'level': 3, 'en': 'c2', 'zh': 'z8'},
+          ],
+        },
+      ],
+      'phrases': [],
+      'unclassified_examples': [],
+    };
+    final wordId = await addWord('good');
+    final o = await service.generateWord(wordId);
+
+    expect(o.failed, isTrue);
+    final w = await repo.wordById(wordId);
+    expect(w!.status, WordStatus.failed.name);
+  });
+
   test('transient error retried 3 times then marks failed', () async {
     client.errorToThrow = const GenerationApiException(
       GenerationErrorKind.transient,

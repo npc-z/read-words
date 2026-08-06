@@ -57,6 +57,7 @@ class GenerationService {
       // §4.2 硬性校验 + §6.4 软校验
       final hard = validateContent(result.content, expectWord: word.headword);
       if (!hard.ok) {
+        await repositories.setWordStatus(wordId, WordStatus.failed);
         return GenerationOutcome(
           word: word.headword,
           failed: true,
