@@ -41,12 +41,25 @@ class DeepSeekClient {
     required this.apiKey,
     this.baseUrl = 'https://api.deepseek.com',
     this.model = 'deepseek-chat',
+    this.connectTimeout = const Duration(seconds: 10),
+    this.receiveTimeout = const Duration(seconds: 10),
+    this.sendTimeout = const Duration(seconds: 10),
     Dio? dio,
-  }) : _dio = dio ?? Dio();
+  }) : _dio = (dio ?? Dio())
+          ..options.connectTimeout = connectTimeout
+          ..options.receiveTimeout = receiveTimeout
+          ..options.sendTimeout = sendTimeout;
 
   final String apiKey;
   final String baseUrl;
   final String model;
+
+  /// 超时(§6.3):请求挂起(网络/服务端无响应)不能永久阻塞队列 worker,
+  /// 超时按 transient 处理走退避重试。Web 端合计为 connect+receive。
+  final Duration connectTimeout;
+  final Duration receiveTimeout;
+  final Duration sendTimeout;
+
   final Dio _dio;
 
   /// 生成单个单词的学习内容(§4)。非流式单次调用。
