@@ -104,6 +104,9 @@ class PendingQueues extends Table {
 class SettingsTable extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
 }
 
 @DriftDatabase(tables: [

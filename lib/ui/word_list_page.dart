@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
+import 'package:read_words/ui/task_console_page.dart';
 import 'package:read_words/ui/word_detail_page.dart';
 
 /// 词集内单词列表
@@ -27,10 +28,37 @@ class _WordListPageState extends State<WordListPage> {
     _future = widget.repositories.wordsInSet(widget.wordSet.id);
   }
 
+  void _refresh() {
+    setState(() {
+      _future = widget.repositories.wordsInSet(widget.wordSet.id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.wordSet.name)),
+      appBar: AppBar(
+        title: Text(widget.wordSet.name),
+        actions: [
+          IconButton(
+            tooltip: '开始生成',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TaskConsolePage(
+                    wordSet: widget.wordSet,
+                    repositories: widget.repositories,
+                  ),
+                ),
+              );
+              if (!mounted) return;
+              _refresh();
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<List<Word>>(
         future: _future,
         builder: (context, snapshot) {
@@ -63,9 +91,7 @@ class _WordListPageState extends State<WordListPage> {
                       ),
                     ),
                   );
-                  setState(() {
-                    _future = widget.repositories.wordsInSet(widget.wordSet.id);
-                  });
+                  if (mounted) _refresh();
                 },
               );
             },

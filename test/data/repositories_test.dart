@@ -89,4 +89,16 @@ void main() {
       expect(r.nextReviewAt, isNotNull);
     });
   });
+
+  group('Settings', () {
+    test('set/get round trip, missing key returns null', () async {
+      expect(await repo.getSetting(SettingsKeys.apiKey), isNull);
+
+      await repo.setSetting(SettingsKeys.apiKey, 'sk-test');
+      expect(await repo.getSetting(SettingsKeys.apiKey), 'sk-test');
+
+      await repo.setSetting(SettingsKeys.apiKey, 'sk-new');
+      expect(await repo.getSetting(SettingsKeys.apiKey), 'sk-new');
+    });
+  });
 }

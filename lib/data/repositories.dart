@@ -22,6 +22,12 @@ class MaterialData {
   final String source;
 }
 
+/// 设置键(§12)
+class SettingsKeys {
+  static const apiKey = 'apiKey';
+  SettingsKeys._();
+}
+
 /// 仓储层:词集 / 词(去重)/ 素材 / 复习状态
 class Repositories {
   Repositories(this.db);
@@ -133,6 +139,21 @@ class Repositories {
             interval: next,
             nextReviewAt: Value(DateTime.now().add(Duration(days: next))),
           ),
+        );
+  }
+
+  /// 读取设置(§12);不存在返回 null
+  Future<String?> getSetting(String key) async {
+    final row = await (db.select(db.settingsTable)
+          ..where((s) => s.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  /// 写入/覆盖设置
+  Future<void> setSetting(String key, String value) async {
+    await db.into(db.settingsTable).insertOnConflictUpdate(
+          SettingsTableCompanion.insert(key: key, value: value),
         );
   }
 }

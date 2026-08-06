@@ -1,63 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:read_words/data/app_database.dart';
 import 'package:read_words/data/repositories.dart';
-import 'package:read_words/generation/content.dart';
 import 'package:read_words/generation/deepseek_client.dart';
 import 'package:read_words/generation/generation_service.dart';
 import 'package:read_words/generation/prompt.dart';
 
-/// 可控的假客户端
-class FakeClient extends DeepSeekClient {
-  FakeClient() : super(apiKey: 'fake');
-
-  String? requestedWord;
-  int callCount = 0;
-
-  /// 待返回的原始响应;null 表示抛错
-  String? rawResponse;
-  GenerationApiException? errorToThrow;
-  Map<String, dynamic>? contentOverride;
-
-  @override
-  Future<GenerationResult> generateWord({
-    required String word,
-    required Proficiency proficiency,
-    String? dictionaryContext,
-  }) async {
-    callCount++;
-    requestedWord = word;
-    if (errorToThrow != null) throw errorToThrow!;
-    final json = contentOverride ??
-        {
-          'word': word,
-          'phonetic': {'uk': '/x/', 'us': '/x/'},
-          'senses': [
-            {
-              'pos': 'v.',
-              'meaning': 'm',
-              'examples': [
-                {'level': 1, 'en': 'a1', 'zh': 'z1'},
-                {'level': 1, 'en': 'a2', 'zh': 'z2'},
-                {'level': 1, 'en': 'a3', 'zh': 'z3'},
-                {'level': 2, 'en': 'b1', 'zh': 'z4'},
-                {'level': 2, 'en': 'b2', 'zh': 'z5'},
-                {'level': 2, 'en': 'b3', 'zh': 'z6'},
-                {'level': 3, 'en': 'c1', 'zh': 'z7'},
-                {'level': 3, 'en': 'c2', 'zh': 'z8'},
-                {'level': 3, 'en': 'c3', 'zh': 'z9'},
-              ],
-            },
-          ],
-          'phrases': [],
-          'unclassified_examples': [],
-        };
-    final content = GeneratedWordContent.fromJson(json);
-    return GenerationResult(content: content!, rawJson: jsonEncode(json));
-  }
-}
+import 'fake_client.dart';
 
 void main() {
   late AppDatabase db;
@@ -107,6 +59,24 @@ void main() {
     final wordId = await addWord('run');
     await serviceTem.generateWord(wordId);
     expect(client.requestedWord, 'run');
+  });
+
+  test('marks word generating while API call is in flight', () async {
+    final gate = Completer<void>();
+    client = FakeClient(gate: gate);
+    service = GenerationService(client: client, repositories: repo);
+    final wordId = await addWord('run');
+
+    final future = service.generateWord(wordId);
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      (await repo.wordById(wordId))!.status,
+      WordStatus.generating.name,
+    );
+
+    gate.complete();
+    await future;
+    expect((await repo.wordById(wordId))!.status, WordStatus.done.name);
   });
 
   test('transient error retried 3 times then marks failed', () async {

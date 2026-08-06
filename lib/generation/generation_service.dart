@@ -41,6 +41,7 @@ class GenerationService {
   Future<GenerationOutcome> generateWord(int wordId, {String? dictionaryContext}) async {
     final word = await repositories.wordById(wordId);
     if (word == null) return const GenerationOutcome(failed: true, error: '词不存在');
+    await repositories.setWordStatus(wordId, WordStatus.generating);
 
     try {
       final result = await _generateWithRetries(word.headword, dictionaryContext);
@@ -120,10 +121,22 @@ class GenerationService {
   }) async {
     final outcomes = <GenerationOutcome>[];
     for (var i = 0; i < wordIds.length; i++) {
+      await repositories.setWordStatus(wordIds[i], WordStatus.queued);
       final o = await generateWord(wordIds[i]);
       outcomes.add(o);
       (onProgress ?? this.onProgress)?.call(i + 1, wordIds.length, o);
     }
     return outcomes;
   }
+}
+
+/// 构造默认生成服务:API Key 从设置读取(§12;未配置时为空串,调用会失败并提示)。
+Future<GenerationService> buildGenerationService(
+  Repositories repositories,
+) async {
+  final apiKey = await repositories.getSetting(SettingsKeys.apiKey) ?? '';
+  return GenerationService(
+    client: DeepSeekClient(apiKey: apiKey),
+    repositories: repositories,
+  );
 }
