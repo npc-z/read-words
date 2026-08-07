@@ -8,6 +8,7 @@ import '../data/app_database.dart';
 import '../data/repositories.dart';
 import 'content.dart';
 import 'deepseek_client.dart';
+import 'merge.dart';
 import 'prompt.dart';
 
 /// 生成结果与失败信息(§6.3 失败清单)
@@ -82,13 +83,15 @@ class GenerationService {
     }
   }
 
-  /// 按 §6.3 重试:网络错误指数退避重试 3 次(1s/4s/16s,共 4 次尝试);
-  /// 校验错误重试 2 次(共 3 次尝试)——结构错误直接重试,§4.2 内容契约
-  /// 错误带失败清单反馈重试(让模型按反馈修正);最终仍失败抛异常。
+  /// 按 §6.3 重试 + §6.3 增量积累:网络错误指数退避重试 3 次(1s/4s/16s,
+  /// 共 4 次尝试);校验错误重试 2 次(共 3 次尝试)——数量不足的响应并入
+  /// 例句池(去重合并),池子够 3/3/3 即收尾,避免浪费响应内容;过度产出
+  /// 直接裁剪,不再重试;非数量错误(词头不符)不进池子,反馈后重试。
   Future<dynamic> _generateWithRetries(String word, String? context) async {
     GenerationApiException? lastTransientError;
     var lastAttemptWasTransient = false;
     String? feedback;
+    final pool = <GeneratedWordContent>[];
     const transientDelays = [
       Duration(seconds: 1),
       Duration(seconds: 4),
@@ -110,19 +113,36 @@ class GenerationService {
           dictionaryContext: context,
           feedback: feedback,
         );
-        final hard = validateContent(result.content, expectWord: word);
-        if (!hard.ok) {
-          feedback = hard.errors.join('; ');
-          lastAttemptWasTransient = false;
-          if (attempt < validationAttempts - 1) {
-            continue; // 带反馈重试
-          }
+        lastAttemptWasTransient = false;
+        // 词头不符的响应不并入池子(避免污染例句池)
+        if (result.content.word.toLowerCase() != word.toLowerCase()) {
+          feedback = '词头不一致:期望 $word,实际 ${result.content.word}';
+          if (attempt < validationAttempts - 1) continue;
           throw GenerationApiException(
             GenerationErrorKind.validation,
-            hard.errors.join('; '),
+            feedback,
           );
         }
-        return result;
+        pool.add(result.content);
+        final merged = mergeAndSelect(pool);
+        if (merged != null) {
+          final hard = validateContent(merged, expectWord: word);
+          if (hard.ok) {
+            // 注意:rawJson 仅为最后一次尝试的原文,合并产物跨多次响应
+            return GenerationResult(
+              content: merged,
+              rawJson: result.rawJson,
+            );
+          }
+          feedback = hard.errors.join('; '); // 防御:合并产物理论已满足契约
+        } else {
+          feedback = countErrors(pool).join('; ');
+        }
+        if (attempt < validationAttempts - 1) continue;
+        throw GenerationApiException(
+          GenerationErrorKind.validation,
+          feedback,
+        );
       } on GenerationApiException catch (e) {
         if (e.kind == GenerationErrorKind.transient) {
           lastAttemptWasTransient = true;

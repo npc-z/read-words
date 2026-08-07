@@ -52,6 +52,29 @@ void main() {
     'unclassified_examples': [],
   };
 
+  /// 数量不足的响应:L1×2/L2×2/L3×3 = 7 句,两次去重合并后恰好 3/3/3
+  Map<String, dynamic> run7({required String suffix}) => {
+        'word': 'run',
+        'phonetic': {'uk': '/rʌn/', 'us': '/rʌn/'},
+        'senses': [
+          {
+            'pos': 'v.',
+            'meaning': '跑',
+            'examples': [
+              {'level': 1, 'en': 'a1', 'zh': 'z'},
+              {'level': 1, 'en': 'a2$suffix', 'zh': 'z'},
+              {'level': 2, 'en': 'b1', 'zh': 'z'},
+              {'level': 2, 'en': 'b2$suffix', 'zh': 'z'},
+              {'level': 3, 'en': 'c1$suffix', 'zh': 'z'},
+              {'level': 3, 'en': 'c2$suffix', 'zh': 'z'},
+              {'level': 3, 'en': 'c3$suffix', 'zh': 'z'},
+            ],
+          },
+        ],
+        'phrases': [],
+        'unclassified_examples': [],
+      };
+
   test('generates and persists material, status becomes done', () async {
     final wordId = await addWord('run');
     final o = await service.generateWord(wordId);
@@ -166,30 +189,90 @@ void main() {
   });
 
   test(
-    'invalid content (not 9 sentences) retried with feedback then marked failed',
+    'over-production (18 sentences) succeeds via selection without retry',
     () async {
-      client.contentByCall.addAll([badRunContent, badRunContent, badRunContent]);
+      client.contentByCall.addAll([badRunContent]);
       final wordId = await addWord('run');
       final o = await service.generateWord(wordId);
 
-      expect(o.failed, isTrue);
-      expect(o.error, contains('L1'));
-      expect(client.callCount, 3);
-      expect(client.lastFeedback, contains('L1'));
+      expect(o.failed, isFalse);
+      expect(client.callCount, 1);
+
+      final m = await repo.materialFor(wordId);
+      final senses = jsonDecode(m!.sensesJson) as List;
+      expect(senses, hasLength(3));
+      final examples = [
+        for (final s in senses) ...(s['examples'] as List),
+      ];
+      expect(examples, hasLength(9));
       final w = await repo.wordById(wordId);
-      expect(w!.status, WordStatus.failed.name);
+      expect(w!.status, WordStatus.done.name);
     },
   );
 
-  test('content validation failure retried with feedback then succeeds', () async {
-    // 第一次:每层 6 句(6 义项 × 每层 1 句)→ 校验失败;第二次默认合法 9 句
-    client.contentByCall.addAll([badRunContent, null]);
+  test('two under-producing responses are merged and succeed', () async {
+    // 两次各 7 句(重叠 a1/b1),去重合并后 3/3/3
+    client.contentByCall.addAll([run7(suffix: ''), run7(suffix: 'x')]);
     final wordId = await addWord('run');
     final o = await service.generateWord(wordId);
 
     expect(o.failed, isFalse);
     expect(client.callCount, 2);
     expect(client.lastFeedback, contains('L1 例句数应为 3'));
+
+    final m = await repo.materialFor(wordId);
+    final senses = jsonDecode(m!.sensesJson) as List;
+    final examples = [
+      for (final s in senses) ...(s['examples'] as List),
+    ];
+    expect(examples, hasLength(9));
+    final w = await repo.wordById(wordId);
+    expect(w!.status, WordStatus.done.name);
+  });
+
+  test('three under-producing responses merged but still insufficient', () async {
+    client.contentByCall.addAll([run7(suffix: ''), run7(suffix: ''), run7(suffix: '')]);
+    final wordId = await addWord('run');
+    final o = await service.generateWord(wordId);
+
+    expect(o.failed, isTrue);
+    expect(client.callCount, 3);
+    expect(o.error, contains('L1 例句数应为 3'));
+    final w = await repo.wordById(wordId);
+    expect(w!.status, WordStatus.failed.name);
+  });
+
+  test('word-mismatch response excluded from pool, retried then succeeds', () async {
+    client.contentByCall.addAll([
+      {
+        'word': 'wrong',
+        'phonetic': {'uk': '/x/', 'us': '/x/'},
+        'senses': [
+          {
+            'pos': 'v.',
+            'meaning': 'm',
+            'examples': [
+              {'level': 1, 'en': 'x1', 'zh': 'z'},
+              {'level': 2, 'en': 'x2', 'zh': 'z'},
+              {'level': 3, 'en': 'x3', 'zh': 'z'},
+            ],
+          },
+        ],
+        'phrases': [],
+        'unclassified_examples': [],
+      },
+      null, // 第二次默认合法 9 句
+    ]);
+    final wordId = await addWord('run');
+    final o = await service.generateWord(wordId);
+
+    expect(o.failed, isFalse);
+    expect(client.callCount, 2);
+    expect(client.lastFeedback, contains('词头不一致'));
+    final m = await repo.materialFor(wordId);
+    expect(m, isNotNull);
+    // 错误词头的例句未被并入
+    expect(jsonEncode(m!.sensesJson), isNot(contains('x1')));
     final w = await repo.wordById(wordId);
     expect(w!.status, WordStatus.done.name);
   });
