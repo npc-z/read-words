@@ -109,6 +109,9 @@ class DeepSeekClient {
           ],
           'temperature': 0.7,
           'response_format': {'type': 'json_object'},
+          // v4 系列 thinking 默认 enabled,思维链会让响应长达数十秒并撞超时;
+          // 显式禁用思考,保证响应速度(需要思考模式时另行开启)
+          'thinking': {'type': 'disabled'},
         },
       );
       final data = resp.data as Map<String, dynamic>;
