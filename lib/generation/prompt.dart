@@ -85,11 +85,6 @@ $context
 
 ${proficiency.definitionStyle}
 
-## 输出前自查(必须逐条核对)
-
-- 整个 JSON 中 level=1 的例句是否恰好 3 条?level=2 是否恰好 3 条?level=3 是否恰好 3 条?总数是否等于 9?
-- 有任何一条不满足,先修正再输出。
-
 只输出 JSON,不要输出任何其他文字、注释或 markdown 代码块标记。
 $feedbackSection''';
 }

@@ -37,13 +37,19 @@ class GenerationResult {
 }
 
 class DeepSeekClient {
+  /// 默认超时(§6.3):请求挂起(网络/服务端无响应)不能永久阻塞队列 worker,
+  /// 超时按 transient 处理走退避重试;Web 端合计为 connect+receive(40s)。
+  static const Duration defaultConnectTimeout = Duration(seconds: 20);
+  static const Duration defaultReceiveTimeout = Duration(seconds: 20);
+  static const Duration defaultSendTimeout = Duration(seconds: 20);
+
   DeepSeekClient({
     required this.apiKey,
     this.baseUrl = 'https://api.deepseek.com',
     this.model = 'deepseek-v4-flash',
-    this.connectTimeout = const Duration(seconds: 10),
-    this.receiveTimeout = const Duration(seconds: 10),
-    this.sendTimeout = const Duration(seconds: 10),
+    this.connectTimeout = defaultConnectTimeout,
+    this.receiveTimeout = defaultReceiveTimeout,
+    this.sendTimeout = defaultSendTimeout,
     Dio? dio,
   }) : _dio = (dio ?? Dio())
           ..options.connectTimeout = connectTimeout
@@ -54,8 +60,6 @@ class DeepSeekClient {
   final String baseUrl;
   final String model;
 
-  /// 超时(§6.3):请求挂起(网络/服务端无响应)不能永久阻塞队列 worker,
-  /// 超时按 transient 处理走退避重试。Web 端合计为 connect+receive。
   final Duration connectTimeout;
   final Duration receiveTimeout;
   final Duration sendTimeout;

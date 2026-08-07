@@ -10,6 +10,17 @@ void main() {
     expect(DeepSeekClient(apiKey: 'k').model, 'deepseek-v4-flash');
   });
 
+  test('default timeouts are 20s each (web total 40s)', () {
+    expect(DeepSeekClient.defaultConnectTimeout, const Duration(seconds: 20));
+    expect(DeepSeekClient.defaultReceiveTimeout, const Duration(seconds: 20));
+    expect(DeepSeekClient.defaultSendTimeout, const Duration(seconds: 20));
+
+    final client = DeepSeekClient(apiKey: 'k');
+    expect(client.connectTimeout, const Duration(seconds: 20));
+    expect(client.receiveTimeout, const Duration(seconds: 20));
+    expect(client.sendTimeout, const Duration(seconds: 20));
+  });
+
   test('slow response times out and maps to transient error', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
