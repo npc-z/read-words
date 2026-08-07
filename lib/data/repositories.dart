@@ -39,6 +39,7 @@ class DueReviewWord {
 /// 设置键(§12)
 class SettingsKeys {
   static const apiKey = 'apiKey';
+  static const model = 'model';
   static const level = 'level';
   static const dailyReadingX = 'dailyReadingX';
   static const budgetMultiple = 'budgetMultiple';
@@ -258,6 +259,7 @@ class Repositories {
       ),
       concurrency: _intOr(raw[SettingsKeys.concurrency], defaults.concurrency),
       apiKey: raw[SettingsKeys.apiKey] ?? defaults.apiKey,
+      model: _stringOr(raw[SettingsKeys.model], defaults.model),
       defaultViewMode: _enumOr(
         ViewMode.values,
         raw[SettingsKeys.defaultViewMode],
@@ -279,6 +281,7 @@ class Repositories {
       SettingsKeys.budgetMultiple: s.budgetMultiple.toString(),
       SettingsKeys.concurrency: s.concurrency.toString(),
       SettingsKeys.apiKey: s.apiKey,
+      SettingsKeys.model: s.model.trim(),
       SettingsKeys.defaultViewMode: s.defaultViewMode.name,
       SettingsKeys.displayMode: s.displayMode.name,
     };
@@ -432,5 +435,11 @@ class Repositories {
 
   static int _intOr(String? raw, int fallback) {
     return int.tryParse(raw ?? '') ?? fallback;
+  }
+
+  /// 字符串设置:去空白,空白/缺失回退默认
+  static String _stringOr(String? raw, String fallback) {
+    final t = (raw ?? '').trim();
+    return t.isEmpty ? fallback : t;
   }
 }

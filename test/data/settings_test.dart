@@ -29,6 +29,7 @@ void main() {
       expect(s.budgetMultiple, 3);
       expect(s.concurrency, 4);
       expect(s.apiKey, '');
+      expect(s.model, 'deepseek-v4-flash');
       expect(s.defaultViewMode, ViewMode.study);
       expect(s.displayMode, DisplayMode.both);
     });
@@ -52,6 +53,17 @@ void main() {
       expect(s.concurrency, 4);
       expect(s.level, EnglishLevel.gaokao);
     });
+
+    test('blank model value falls back to default, stored value is trimmed', () async {
+      await repo.setSetting(SettingsKeys.model, '   ');
+
+      var s = await repo.settings();
+      expect(s.model, 'deepseek-v4-flash');
+
+      await repo.setSetting(SettingsKeys.model, '  deepseek-reasoner  ');
+      s = await repo.settings();
+      expect(s.model, 'deepseek-reasoner');
+    });
   });
 
   group('Settings round trip', () {
@@ -62,6 +74,7 @@ void main() {
         budgetMultiple: 2,
         concurrency: 8,
         apiKey: 'sk-123',
+        model: 'deepseek-reasoner',
         defaultViewMode: ViewMode.review,
         displayMode: DisplayMode.en,
       );
@@ -73,6 +86,7 @@ void main() {
       expect(s.budgetMultiple, 2);
       expect(s.concurrency, 8);
       expect(s.apiKey, 'sk-123');
+      expect(s.model, 'deepseek-reasoner');
       expect(s.defaultViewMode, ViewMode.review);
       expect(s.displayMode, DisplayMode.en);
     });

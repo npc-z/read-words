@@ -41,6 +41,7 @@ class AppSettings {
     this.budgetMultiple = 3,
     this.concurrency = 4,
     this.apiKey = '',
+    this.model = 'deepseek-v4-flash',
     this.defaultViewMode = ViewMode.study,
     this.displayMode = DisplayMode.both,
   });
@@ -60,6 +61,9 @@ class AppSettings {
   /// AI API Key(OpenAI 兼容)
   final String apiKey;
 
+  /// AI 模型名(OpenAI 兼容;空白回退默认,§12)
+  final String model;
+
   /// 默认视图模式(§8.1)
   final ViewMode defaultViewMode;
 
@@ -72,6 +76,7 @@ class AppSettings {
     int? budgetMultiple,
     int? concurrency,
     String? apiKey,
+    String? model,
     ViewMode? defaultViewMode,
     DisplayMode? displayMode,
   }) {
@@ -81,6 +86,7 @@ class AppSettings {
       budgetMultiple: budgetMultiple ?? this.budgetMultiple,
       concurrency: concurrency ?? this.concurrency,
       apiKey: apiKey ?? this.apiKey,
+      model: model ?? this.model,
       defaultViewMode: defaultViewMode ?? this.defaultViewMode,
       displayMode: displayMode ?? this.displayMode,
     );

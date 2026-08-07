@@ -21,6 +21,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _mController;
   late final TextEditingController _concurrencyController;
   late final TextEditingController _apiKeyController;
+  late final TextEditingController _modelController;
   late final FocusNode _xFocus;
   late final FocusNode _mFocus;
   late final FocusNode _concurrencyFocus;
@@ -35,6 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
       text: '${_settings.concurrency}',
     );
     _apiKeyController = TextEditingController(text: _settings.apiKey);
+    _modelController = TextEditingController(text: _settings.model);
     _xFocus = FocusNode()..addListener(_onXFocusChanged);
     _mFocus = FocusNode()..addListener(_onMFocusChanged);
     _concurrencyFocus = FocusNode()..addListener(_onConcurrencyFocusChanged);
@@ -47,6 +49,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _mController.dispose();
     _concurrencyController.dispose();
     _apiKeyController.dispose();
+    _modelController.dispose();
     _xFocus.dispose();
     _mFocus.dispose();
     _concurrencyFocus.dispose();
@@ -86,6 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _mController.text = '${s.budgetMultiple}';
         _concurrencyController.text = '${s.concurrency}';
         _apiKeyController.text = s.apiKey;
+        _modelController.text = s.model;
         _loaded = true;
       });
     } catch (e) {
@@ -212,6 +216,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   onChanged: (text) =>
                       _save(_settings.copyWith(apiKey: text.trim())),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _modelController,
+                  decoration: const InputDecoration(
+                    labelText: 'AI 模型(OpenAI 兼容)',
+                  ),
+                  onChanged: (text) =>
+                      _save(_settings.copyWith(model: text.trim())),
                 ),
                 const SizedBox(height: 24),
                 DropdownButtonFormField<ViewMode>(

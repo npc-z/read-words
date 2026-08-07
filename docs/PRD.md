@@ -350,6 +350,7 @@ Settings(key, value)   // 水平、X、M、并发数、默认视图模式、host
 | 同步主机 | — | 指定哪台设备作 host |
 | 硬性过滤开关 | 关 | 等级词过滤(§5) |
 | AI API Key | — | DeepSeek 等 OpenAI 兼容 API |
+| AI 模型 | deepseek-v4-flash | 自由文本;OpenAI 兼容模型名,空白回退默认 |
 
 ---
 

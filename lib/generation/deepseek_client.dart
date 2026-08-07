@@ -40,7 +40,7 @@ class DeepSeekClient {
   DeepSeekClient({
     required this.apiKey,
     this.baseUrl = 'https://api.deepseek.com',
-    this.model = 'deepseek-chat',
+    this.model = 'deepseek-v4-flash',
     this.connectTimeout = const Duration(seconds: 10),
     this.receiveTimeout = const Duration(seconds: 10),
     this.sendTimeout = const Duration(seconds: 10),

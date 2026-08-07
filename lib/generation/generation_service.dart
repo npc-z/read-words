@@ -156,13 +156,14 @@ class GenerationService {
   }
 }
 
-/// 构造默认生成服务:API Key 从设置读取(§12;未配置时为空串,调用会失败并提示)。
+/// 构造默认生成服务:API Key 与模型名从设置读取(§12;Key 未配置时为空串,
+/// 调用会失败并提示;模型空白回退默认)。
 Future<GenerationService> buildGenerationService(
   Repositories repositories,
 ) async {
-  final apiKey = await repositories.getSetting(SettingsKeys.apiKey) ?? '';
+  final s = await repositories.settings();
   return GenerationService(
-    client: DeepSeekClient(apiKey: apiKey),
+    client: DeepSeekClient(apiKey: s.apiKey, model: s.model),
     repositories: repositories,
   );
 }

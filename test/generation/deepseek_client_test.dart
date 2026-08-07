@@ -6,6 +6,10 @@ import 'package:read_words/generation/deepseek_client.dart';
 import 'package:read_words/generation/prompt.dart';
 
 void main() {
+  test('default model is deepseek-v4-flash', () {
+    expect(DeepSeekClient(apiKey: 'k').model, 'deepseek-v4-flash');
+  });
+
   test('slow response times out and maps to transient error', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

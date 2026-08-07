@@ -29,6 +29,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 列表底部项可能被挤出视口(ListView 懒加载),滚动到可见
+  Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+    await tester.scrollUntilVisible(
+      finder,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('renders defaults when nothing stored', (tester) async {
     await pumpSettings(tester);
 
@@ -36,7 +46,9 @@ void main() {
     expect(find.widgetWithText(TextField, '50'), findsOneWidget);
     expect(find.widgetWithText(TextField, '3'), findsOneWidget);
     expect(find.widgetWithText(TextField, '4'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'AI 模型(OpenAI 兼容)'), findsOneWidget);
     expect(find.text('学习模式'), findsOneWidget);
+    await scrollTo(tester, find.text('中英双语'));
     expect(find.text('中英双语'), findsOneWidget);
   });
 
@@ -59,6 +71,7 @@ void main() {
     expect(find.widgetWithText(TextField, '2'), findsOneWidget);
     expect(find.widgetWithText(TextField, '8'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'sk-abc'), findsOneWidget);
+    await scrollTo(tester, find.text('复习模式'));
     expect(find.text('复习模式'), findsOneWidget);
     expect(find.text('仅英文'), findsOneWidget);
   });
@@ -96,6 +109,25 @@ void main() {
     expect((await repo.settings()).apiKey, 'sk-new');
   });
 
+  testWidgets('typing model persists immediately, clearing falls back to default', (tester) async {
+    await pumpSettings(tester);
+
+    final modelField = find.widgetWithText(TextField, 'AI 模型(OpenAI 兼容)');
+    expect(modelField, findsOneWidget);
+    expect(
+      tester.widget<TextField>(modelField).controller!.text,
+      'deepseek-v4-flash',
+    );
+
+    await tester.enterText(modelField, 'deepseek-reasoner');
+    await tester.pumpAndSettle();
+    expect((await repo.settings()).model, 'deepseek-reasoner');
+
+    await tester.enterText(modelField, '');
+    await tester.pumpAndSettle();
+    expect((await repo.settings()).model, 'deepseek-v4-flash');
+  });
+
   testWidgets('invalid or zero numbers are not persisted and revert on blur', (
     tester,
   ) async {
@@ -123,6 +155,7 @@ void main() {
   ) async {
     await pumpSettings(tester);
 
+    await scrollTo(tester, find.text('学习模式'));
     await tester.tap(find.text('学习模式'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('查阅模式').last);
